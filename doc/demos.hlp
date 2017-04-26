@@ -1,0 +1,41 @@
+.help demos Sep00 xdimsum
+.ih
+NAME
+demos -- create the demo data for xdimsum
+.ih
+USAGE
+demos demoname
+.ih
+PARAMETERS
+.ls demoname
+The name of the demo data set to be created. At present the only option
+is "mkxdimsum".
+.le
+.ih
+DESCRIPTION
+Demos creates a set of artificial test data for the XDIMSUM package.
+.ih
+EXAMPLES
+
+1. Create the demo data for the xdimsum package and run the xmosaic task on it.
+Define the parameters to give results as close as possible to the original
+DIMSUM.
+
+.nf
+    cl> cd <testdir>
+    ... move to an empty test directory which has write permission
+
+    cl> demos mkxdimsum
+    ... create the demo data
+
+    cl> xmosaic @demo.list demo13  mosaic ".exp"  nsigrej=5.0 maxiter=10     \
+	bpmask=demo.pl shiftslist=demo.slist
+.fi
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xmosaic, xfirstpass, xmaskpass
+.endhelp

@@ -1,0 +1,285 @@
+procedure photcheck(image,starcoords,output)
+
+# Procedure for monitoring photometric stability of a data set.
+# The user first identifies several suitable objects in the mosaic
+# image produced by shiftfix or magshiftfix, and records their X and Y
+# coordinates in a file.  It is recommended that these objects mostly be
+# located on a portion of the mosaic with nearly maximum exposure time,
+# so that they will appear in most or all of the individual input frames.
+# This script then takes that input position list, transforms it back to
+# the coordinate systems of the individual, sky subtracted images which
+# were summed to make the mosaic, and uses digiphot.apphot.phot to 
+# compute accurate positions and measure magnitudes for the reference
+# objects in each sky subtracted input frame.   If the user sets badcheck=yes,
+# then the bad pixel mask, plus cosmic ray and "holes" masks, if present, are 
+# used to set all bad pixels in each frame to a flag value recognized by phot.
+# If any bad pixels are within the photometric aperture, phot will
+# return an INDEF value for the magnitude.   Finally, the output files from
+# phot are compiled into a convenient format by use of an awk script.
+#
+# This routine requires the script minv.cl, and also that awk be defined
+# in the user package as a foreign task, i.e. task $awk = $foreign.
+#
+# 2-3 Aug 1993  by Mark Dickinson
+
+string	image  		{prompt="Maskpass mosaic image"}
+string	starcoords	{prompt="File containing reference star coordinates"}
+string	output		{prompt="File for formatted output photometry"}
+bool	badcheck	{yes, prompt="Check for bad pixels and return INDEF values?"}
+string	badpix		{prompt="Bad pixel mask"}
+real 	angle   	{0., prompt="angle in deg. from y to N dir N thru E"}
+bool 	rotation	{yes, prompt="Is N thru E counterclockwise?"}
+real	secpexp		{prompt="Seconds per unit exposure time"}
+bool	verbose		{yes, prompt="Verbose output?"}
+struct	*imglist
+struct	*starlist
+
+begin
+
+	string 	mimg,starc,outp		# Equal query parameters
+	int 	ixdim,iydim,oxdim,oydim	# Dimensions of original and mosaiced images
+	int	ix, iy			# Coordinate offsets of input images
+	string	img			# Fscanned name of image
+	bool	flipx,flipy,trans	# Orientation switches
+	string	starfile		# File for reoriented star coordinates
+	string	starshift		# File for translated star coordinates
+	string	workimage		# Copy of image for use with phot.
+	real	xstar, ystar		# Star coordinates
+	real	temp			# swap variable
+	string	photlist		# temporary dump file
+	string	dimsumdir		# pathname of DIMSUM source code directory
+	string	crmask, holesmask, ext
+	real	flagval			# large flag value -- set to 1.e10
+
+	flagval = 1.e10
+
+# Check to make sure digiphot.apphot is loaded.
+
+	if (!defpac("apphot")) {
+		print ("Please load package digiphot.apphot and set parameters for")
+		print ("  the task 'phot' before using this routine.")
+		return
+	} else {
+		print ("")
+		print ("Be sure to edit parameter sets for task 'phot' before using this routine.")
+		print ("")
+	}
+
+# Get query parameters.
+
+	mimg  = image
+	starc = starcoords
+	outp  = output
+
+# Check for presence of the photcheck.format.awk script in the DIMSUM source 
+# code directory.  If that file is not present, return error message.
+
+	dimsumdir = osfn("dimsumsrc$")
+	if (!access(dimsumdir//"photcheck.format.awk")) {
+		print ("ERROR:   Cannot access ",dimsumdir//"photcheck.format.awk")
+		return
+	}
+
+# Get dimensions of mosaic image.
+
+	imgets(mimg,"i_naxis1")
+	oxdim=int(imgets.value)
+	imgets(mimg,"i_naxis2")
+	oydim=int(imgets.value)
+
+# Get dimensions of first input image.  It is assumed that all the
+# input images have the same dimension -- no checking is done for this.
+
+	imglist=mimg//"._shifts"
+	if (fscan(imglist,img) != EOF) {
+		imgets(img,"i_naxis1")
+		ixdim=int(imgets.value)
+		imgets(img,"i_naxis2")
+		iydim=int(imgets.value)
+	   } else {
+		error (0,"ERROR:  problem reading shift list.")
+	}
+
+# Set angle to a value from -45 to 315 degrees
+
+	while (angle < -45.)  {angle+=360.}
+	while (angle >= 315.) {angle-=360.}
+
+# Determine transformation of mosaic image back to original coordinate system.
+	
+	if (angle < 45) {
+		if (rotation) {
+			flipx = no  ; flipy = no  ; trans = no
+		   } else {
+			flipx = yes ; flipy = no  ; trans = no
+		}
+	}
+	else if (angle < 135) {
+		if (rotation) {
+			flipx = no  ; flipy = yes ; trans = yes
+		  } else {
+			flipx = no  ; flipy = no  ; trans = yes
+		}
+	}
+	else if (angle < 225) {
+		if (rotation) {
+			flipx = yes ; flipy = yes ; trans = no
+		   } else {
+			flipx = no  ; flipy = yes ; trans = no
+		}
+	}
+	else if (angle < 315) {
+		if (rotation) {
+			flipx = yes ; flipy = no  ; trans = yes
+		   } else {
+			flipx = yes ; flipy = yes ; trans = yes
+		}
+	}
+
+# Read star coordinates and transform to original image orientation.
+
+	starfile = mktemp("tmp$photcheck")
+	starlist = starc
+	while (fscan(starlist,xstar,ystar) != EOF) {
+		if (flipx) xstar = oxdim - xstar + 1
+		if (flipy) ystar = oydim - ystar + 1
+		if (trans) {
+			temp = xstar 
+			xstar = ystar
+			ystar = temp
+		}
+		print (xstar, ystar, >> starfile)
+	}
+	starlist = ""
+
+# If bad pixel checking is turned on, delete temporary files if present.
+
+	fileroot ("")
+	ext = fileroot.defextn
+	if (badcheck) {
+		if (access("_tempcrmask.pl")) imdelete ("_tempcrmask.pl",ver-)
+		if (access("_badpix"//ext)) imdelete ("_badpix"//ext,ver-)
+
+# Parameter datapars.datamin is set to trigger 'INDEF' results for any object which 
+# has a bad pixel within the aperture.  If badcheck=no, then leave datamin = INDEF.
+
+		datapars.datamin = -0.95 * flagval
+	   } else {
+		datapars.datamin = INDEF
+	}
+
+# Rewind image list and create temporary file for recording phot output filenames.
+
+	imglist=mimg//"._shifts"
+	photlist = mktemp ("tmp$photcheck")
+
+# First, do photometry on stars in the mosaic image to act as reference values.
+# Here we retain the original coordinate scheme, and set the exposure time to
+# one second (which it should be after dimsum reduction).
+
+	if (verbose) print ("Measuring reference magnitudes from ",mimg)
+	datapars.itime = 1.
+	phot (mimg,skyfile="",centerpars="",fitskypars="",coords=starc,
+		output=mimg//".mag.X",inter-,verify-,verbose-)
+
+# Record photometry output file name in temporary file photlist.
+
+	print (mimg//".mag.X", >photlist)
+
+# Reset datapars.itime to the individual exposure times of the sky subtracted
+# frames for proper magnitude normalization.
+
+	datapars.itime = secpexp
+
+# Next, loop through the individual images.
+
+	while (fscan(imglist,img,ix,iy) != EOF) {
+
+		if (verbose) print ("Working on image ",img)
+
+# Combine bad pixel mask with cosmic ray mask and "holes" mask, if present.
+# We rename the new mask to _badpix, giving it datatype real to accept
+# the large flag values used later.
+
+		if (badcheck) {
+			imcopy (badpix,"_badpix"//ext,ver-)
+			imgets (img,"CRMASK")
+			if (imgets.value != "0") {
+				crmask = imgets.value
+				if (access(crmask)) {
+					if (verbose) print ("  Using CRMASK file ",crmask)
+					minv (crmask,"_tempcrmask.pl")
+					imarith ("_badpix"//ext,"*","_tempcrmask.pl","_badpix"//ext,ver-)
+					imdelete ("_tempcrmask.pl",ver-)
+				}
+			}
+			imgets (img,"HOLES")
+			if (imgets.value != "0") {
+				holesmask = imgets.value
+				if (access(holesmask)) {
+					if (verbose) print ("  Using HOLES file ",holesmask)
+					imarith ("_badpix"//ext,"*",holesmask,"_badpix"//ext,ver-)
+				}
+			}
+
+# Copy image and set bad pixels to a large, negative flag value.
+
+			imcopy (img,"_"//img,ver-)
+			imarith ("_"//img,"*","_badpix"//ext,"_"//img,ver-)
+			minv ("_badpix"//ext,"_badpix"//ext)
+			imarith ("_badpix"//ext,"*",flagval,"_badpix"//ext,ver-)
+			imarith ("_"//img,"-","_badpix"//ext,"_"//img,ver-)
+			workimage = "_"//img
+
+		   } else {
+
+			workimage = img
+
+		}
+
+# Apply translation to star coordinate file.
+
+		starshift = mktemp("tmp$photcheck")
+		lintran (starfile,xf=1,yf=2,x1=ix,y1=iy,x2=0.,y2=0.,
+			xsc=1.,ysc=1.,angle=0,min_sig=4,>>starshift)
+
+# Do photometry on star list.   Output goes to file named workimage//.mag.X
+
+		phot (workimage,skyfile="",centerpars="",fitskypars="",coords=starshift,
+			output=workimage//".mag.X",inter-,verify-,verbose-)
+
+# Record photometry output file name in temporary file photlist.
+
+		print (workimage//".mag.X",>>photlist)
+
+# Clean up.
+
+		delete (starshift,ver-)
+		if (badcheck) {
+			imdelete ("_badpix"//ext,ver-)
+			imdelete ("_"//img,ver-)
+		}
+
+	}
+
+# Dump photometric records to output photometry file and format using awk script.
+
+	txdump ("@"//photlist,"image,otime,mag,merr","yes",headers-) | awk ("-f",dimsumdir//"photcheck.format.awk",> outp)
+
+	if (verbose) {
+		print ("")
+		print ("Output data written to file ",outp)
+		print ("Use this as input to task photdiff to compute")
+		print ("and plot photometric offsets between frames.")
+		print ("")
+	}
+
+# Clean up.
+
+	delete ("@"//photlist,ver-)
+	delete (photlist,ver-)
+	delete (starfile,ver-)
+
+	imglist = ""
+
+end

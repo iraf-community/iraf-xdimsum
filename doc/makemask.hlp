@@ -1,0 +1,160 @@
+.help makemask Sep00 xdimsum
+.ih
+NAME
+makemask -- create object masks for a list of input images
+.ih
+USAGE
+makemask inlist outlist
+.ih
+PARAMETERS
+.ls inlist
+The list of input images for which object masks are to be created.
+.le
+.ls outlist
+The list of output masks. The number output masks must be the same as the
+number of input images. list of output masks. The number output masks must
+be the same as the number of input images.
+.le
+.ls hinlist = ""
+The list of images to which BPM keywords containing the name of the output
+maks are to be added. Hinlist may be the same as or different from inlist.
+.le
+.ls subsample = 1
+The block averaging factor applied to the input image before median filtering.
+.le
+.ls checklimits = yes
+Check the input image data limits for the fast median filter ? If checklimits
+is yes then the lower and upper data limits are set to max (\fIzmin\fR,
+image_min) and min (\fIzmax\fR, image_max) respectively. If checklimits is no
+no image data limits checking is done.
+.le
+.ls zmin = -32767, zmax = 32767
+The default data limits supplied to the fast median filter if
+\fIchecklimits\fR is yes.
+.le
+.ls filtsize = 15
+The size of the fast median filter used to determine the background. The
+effective size of the median filter is \fIsubsample\fR * filtsize.
+.le
+.ls nsmooth = 3
+The size of the boxcar smoothing filter applied to the median filtered image.
+.le
+.ls statsec = ""
+The input image section used to compute the recommended object detection
+threshold.
+.le
+.ls nsigrej = 3.0
+The bad pixel rejection criterion used to compute the recommended object
+detection threshold.
+.le
+.ls maxiter = 20
+The maximum number of bad pixel rejection iterations used to compute the
+recommended object detection threshold.
+.le
+.ls threshtype = "nsigma"
+The threshold setting algorithm. The options are "nsigma" and "constant".
+.ls nsigma
+Set the threshold to the background sky value plus the value of \fInsigthresh\R
+ * the sky background sigma.
+.le
+.ls constant
+Set the threshold to the background sky value plus the value of
+\fIconstthresh\fR.
+.le
+.le
+.ls nsigthresh = 2.0
+The number of sky background sigma used to defined the threshold value for
+background detection.
+.le
+.ls constthresh = 0.0
+The constant threshold value
+.le
+.ls negthresh = no
+Set a negative as well as a positive masking threshold ?
+.le
+.ls ngrow = 0
+The half_width of the region growing box. Only positive features are subject
+to region growing.
+.le
+.ls verbose = no
+Print messages about the progress of the task.
+.le
+.ih
+DESCRIPTION
+MAKEMASK creates object masks called \fIoutlist\fR for the
+input images \fIinlist\fR using a median filtering and thresholding technique.
+If \fIhinlist\fR is defined the output object mask names are written to image
+header BPM keyword. Hinlist does not have to be the same as \fIinlist\fR.
+
+Before median filtering the normalized input image is block-averaged by a
+factor of \fIsubsample\fR. The size of the median filter \fIfiltsize\fR
+refers to the block-averaged image. Therefore the effective size of
+the median filter is actually subsample * filtsize. The median filter can be
+protected against deviant values by setting \fIchecklimits\fR to yes and
+\fIzmin\fR and \fIzmax\fR to reasonable values. If \fIfiltsize\fR < 1 then
+no block averaging, median filtering, or block replication is done.
+
+The median value of the input image pixels is computed using pixels in
+\fIstatsec\fR and iterative rejection  with rejection parameters of
+\fInsigrej\fR and \fImaxiter\fR.
+
+After the image statistics computation but before thresholding the image 
+is smoothed using a boxcar filter of size \fInsmooth\fR. 
+
+If \fIthreshtype\fR = "nsigma" the threshold value is set to
+
+.nf
+	pthreshold = median + \fInsigthresh\fR * sigma / \fInsmooth\fR
+	if (negthresh)
+	    nthreshold = median - \fInsigthresh\fR * sigma / \fInsmooth\fR
+	else
+	    nthreshold = -1.0e37
+.fi
+
+otherwise it is set to 
+
+.nf
+	pthreshold = median + \fIconstthresh\fR
+	if (negthresh)
+	    nthreshold = median - \fIconstthresh\fR
+	else
+	    nthreshold = -1.0e37
+.fi
+
+
+The image pixels greater than or or less than the detection threshold are set to
+1 in the output object mask. The remaining pixels are set to 0. If \fIngrow\fR
+> 0  pixels within a box of half-width \fIngrow\fR pixels around positive
+"objects" are assumed to be object pixels.
+
+If \fIverbose \f R= yes then detailed messages about the progress of the task
+are printed on the screen.
+
+.ih
+EXAMPLES
+
+1. Create object masks for a list of sky subtracted images
+
+.nf
+    cl> type imlist
+    demo01.sub
+    demo02.sub
+    ...
+    demo25.sub
+
+    cl> type outlist
+    demo01.sub.msk
+    demo02.sub.msk
+    ...
+    demo25.sub.msk
+
+    cl> makemask @imlist @outlist nsigrej=5.0 maxiter=10
+.fi
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+mkmask, blkavg, fmedian, boxcar, imexpr
+.endhelp

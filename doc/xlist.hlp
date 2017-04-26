@@ -1,0 +1,78 @@
+.help xlist Sep00 xdimsum
+.ih
+NAME
+xlist -- create an output image list from an input image list
+.ih
+USAGE
+xlist inlist outlist start finish exclude
+.ih
+PARAMETERS
+.ls inlist
+The input image list.
+.le
+.ls outlist
+The output image list.
+.le
+.ls start
+The sequence number of the first image in the input list to include in the
+output list.
+.le
+.ls finish
+The sequence number of the first image in the input list to include in the
+output list.
+.le
+.ls exclude
+The sequence number of the image  in the input image list that lies
+between start and finish to exclude from the output list.
+.le
+.ls suffix = ""
+The prefix to append to the selected input image names before they are written
+to the output list.
+.le
+
+.ih
+DESCRIPTION
+XLIST creates an output images list \fIoutlist\fR consisting of images 
+\fIstart\fR to \fIfinish\fR in the input image list \fIinlist\fR.
+If \fIexclude\fR is between start and finish the input image with that
+sequence number will be excluded from the output image list. The string
+\fIsuffix\fR will be appended to the input image names before they are
+written to the output image list.
+
+XLIST is a simple script task currently used by the XSLM and MASKDEREG
+tasks to create subsets image lists sky subtraction and object mask
+combination.
+
+.ih
+EXAMPLES
+
+1. Assemble the list of 6 nearest images to be used to create a sky image for 
+image number 13 in the demo image sequence.
+
+.nf
+cl> type inlist
+demo01
+demo02
+demo03
+...
+demo24
+demo25
+
+cl> xlist inlist outlist 10 16 13 
+
+cl> type outlist
+demo10
+demo11
+demo12
+demo14
+demo15
+demo16
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+.endhelp

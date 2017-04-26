@@ -1,0 +1,59 @@
+.help badpixupdate Sep00 xdimsum
+.ih
+NAME
+badpixupdate -- update the bad pixel mask using a list of input masks
+.ih
+USAGE
+badpixupdate inlist nrepeats bpmask
+.ih
+PARAMETERS
+.ls inlist
+The list of input bad pixel masks normally produced by the cosmic
+ray correction tasks xzap or xnzap. The masks in inlist are assumed to
+consist entirely of 1's and 0's with the candidate bad pixels set to 1.
+.le
+.ls nrepeats
+If the same pixel is bad in nrepeats or more candidate bad pixel masks
+then it is set to 0 in bpmask.
+.le
+.ls bpmask
+The name of the bad pixel mask to be updated. Bpmask is assumed to consist
+entirely of 1's and 0's with bad pixels set to 0.0. Note that the pixels
+in bpmask are defined in the opposite sense to those in inlist.
+.le
+.ih
+DESCRIPTION
+
+BADPIXUPDATE sums the candidate bad pixel masks in \fIinlist\fR, detects
+which pixels are bad \fInrepeats\fR or more images, sets those pixels to
+be bad in \fIbpmask\fR. The input candidate bad pixel masks are normally
+the output of the cosmic ray detection tasks XZAP or XNZAP and are assumed
+to consist entirely of 1's and 0's with 1 defined to be bad. The output
+bad pixel mask is usually the bad pixel mask common to all the input images
+and is assumed to consist entirely of 1's and 0's with 0 defining a bad
+pixel.
+.ih
+EXAMPLES
+
+1. Search a list of cosmic ray masks computed by xnzap, detect pixel
+with more than 3 "cosmic ray" hits and set those pixel to be bad
+in the bad pixel mask demo.pl.
+
+.nf
+cl> type crmlist
+demo01.sub.crm.pl
+demo02.sub.crm.pl
+...
+demo25.sub.crm.pl
+
+cl> badpixupdate @crmlist 3 demo.pl
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xzap,xnzap
+.endhelp

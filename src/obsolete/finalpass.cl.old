@@ -1,0 +1,153 @@
+procedure finalpass(sfimg,outimg,mask)
+
+# Modified 19 August 1992 to use pre-mask version of slm.  Assumes
+# input images have been previously flatfielded.  Calls xzap.
+# Pixels corrected by xzap more than 2 times added to badpix.
+#
+# Script combining slm, flat fielding, fixpix, zap, and magshiftfix for
+# for the second pass of reduction of HZRG's.  Maskpass must be given
+# the name of the image from newshiftfix, the number of images to use
+# in the sky frame, the path of the flat for flat fielding, the path of
+# the bad pixel list, the name of the final shifted image, and all
+# relevent parameters for calling magshiftfix.
+# A threshold value of 5 times the average of the standard deviation
+# of the fixpixed images is used in calling zap, and the file for logging
+# bad pixels is called zaplog.  The output images are prefixed with "ss_".
+# All existing images "ss_*" are deleted when finalpass called.
+# The mask image must be named "mask".
+#
+# 11 July 1992 by John S. Ward
+
+
+string	sfimg	{prompt="Name of image produced by shiftfix"}
+string	outimg	{prompt="Name for final magshifted image"}
+string	mask	{prompt="Name of object mask file"}
+bool	maskdereg	{yes,prompt="Deregister mask sections from main mask?"}
+bool	xslm	{yes,prompt="Do xslm stage?"}
+bool	fixpix	{yes,prompt="Do fixpix stage?"}
+bool	xzap	{yes,prompt="Do xzap stage?"}
+bool	badpixupdate	{yes,prompt="Do bad pixel file update?"}
+bool	register	{yes,prompt="Do register stage?"}
+string  shiftlist {"Shiftlist",prompt="Shift list file (names, a shifts, b shifts, weights)"}
+int	nmed	{4,min=1,prompt="Number of images to use in sky frame"}
+int	mfac	{4,min=1,prompt="Magnification factor for magshift"}
+string	bpimage	{"",prompt="Bad pixel mask image"}
+string  prefix  {"ss_",prompt="Prefix for sky subtracted images"}
+real	secpexp	{60.,prompt="Seconds per unit exposure time"}
+int     ncoavg	{1,prompt="Number of internal coaverages per frame"}
+int	rjct	{1,prompt="Number of pixels for xslm minmax reject"}
+int     nskymin {0,prompt="Minimum number of frames to use for sky"}
+bool	premask	{yes,prompt="Mask working sky images to make sky frame?"}
+bool	forcescale	{yes,prompt="Force recalculation of image medians in sky scaling?"}
+bool	pixin	{no,prompt="Are input coords measured pixels of ref object?"}
+real	scale_x	{1.,prompt="x pixels per ab coord unit"}
+real	scale_y	{1.,prompt="y pixels per ab coord unit"}
+real	ang_a2x	{180.,prompt="Angle in degrees from a CCW to x"}
+bool	senseab	{no,prompt="Is a through b counterclockwise?"}
+real	ang_y2N	{0.,prompt="Angle in degrees from y to N dir N through E"}
+bool	rotation	{yes,prompt="Is N through E counterclockwise?"}
+bool    answer  {yes,prompt="OK to delete old sky subtracted files?",mode="q"}
+struct  *ilist
+
+begin
+
+	string	ext		# Default extension
+	string 	sfim		# equals sfimg
+	string	outim		# equals outimg
+	string	msk		# equals mask
+	int     nprefix         
+
+        string  img             # image filename
+        string  tlist1          # temporary file list
+        string  tlist2          # temporary file list
+        string  simgimh		# name of sky subtracted image for first image on list
+
+	sfim	= sfimg
+	outim	= outimg
+	msk	= mask
+
+# Create temporary lists of filenames for unskysubtracted and sky subtracted 
+# output files.
+# Determine filename of first sky subtracted file and save in variable
+# imgimh for later use.
+ 
+	fileroot (sfim,validim+)
+	sfim = fileroot.root
+	ext = fileroot.defextn
+
+        if (maskdereg || xslm || fixpix || xzap) {
+           tlist1 = mktemp("tmp$firstpass")
+           tlist2 = mktemp("tmp$firstpass")
+           ilist = sfim // "._shift"
+           while (fscan(ilist,img) != EOF) {
+		fileroot (img,validim+)
+		if (fileroot.extension == "") {
+			simgimh = prefix // fileroot.root // ext
+		   } else {
+			simgimh = prefix // img
+		}
+                print (img,>>tlist1)
+                print (prefix//img,>>tlist2)
+	   }
+	} 
+
+# Call maskdereg, xslm, fixpix, xzap, badpixupdate, and register.
+
+	if (maskdereg) {
+          print("------ Deregistering mask subsections with maskdereg ------")
+	  imdelete ("objmask_*.pl",ver-)
+	  maskdereg (sfim,msk,angle=ang_y2N,rotation=rotation,update+)
+	  print("")
+	}
+
+	if (xslm) {
+          print("----------- Sky subtracting images with xslm. -------------")
+	  if (access(simgimh)) {
+               	if (answer) imdel(simgimh,ver-)
+	  }
+	  imdelete ("csky_"//prefix//"*.pl",ver-)
+	  imdelete ("holes_"//prefix//"*.pl",ver-)
+	  xslm(tlist1,nmed,mask=yes,prefix=prefix,nrej=rjct,nskymin=nskymin,
+		premask=premask,force=forcescale,csky_del=no)
+	  print("")
+	}
+
+	if (fixpix) {
+          print("----------Correcting bad pixels with maskfix.-------------")
+          maskfix ("@"//tlist2,bp,0)
+          print("")
+	}
+
+	if (xzap) {
+          print("----------  Zapping cosmic rays using xzap.  -------------")
+          imdel ("_cr*"//ext//",_mask*"//ext//",_fmed*"//ext,ver-)
+          xzap("@"//tlist2,"@"//tlist2,deletemask=no,
+                cleanpl=yes,cleanimh=yes,verbose=no)
+          print("")
+	}
+
+	if (badpixupdate)  {
+          print("------- Updating bad pixel file with badpixupdate. -------")
+          badpixupdate (3,bp)
+          print("")
+	}
+
+	if (register) {
+          print("------Shifting and coadding images with register.------")
+	  nprefix = strlen(prefix)
+	  register(shiftlist,outim,bpimage,xscale=scale_x,yscale=scale_y,
+		axangle=ang_a2x,absense=senseab,pixin=pixin,angle=ang_y2N,
+		rotation=rotation,secpexp=secpexp,ncoavg=ncoavg,mag=mfac,
+		nprefix=nprefix)
+	}
+
+# Clean up.
+
+        if (maskdereg || xslm || fixpix || xzap) {
+		delete (tlist1,ver-)
+		delete (tlist2,ver-)
+	}
+
+	ilist = ""
+
+end

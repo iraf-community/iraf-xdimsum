@@ -1,0 +1,8 @@
+# Root task entry for the XDIMSUM package help tree.  Defines `<package>'
+# as both a task and a package in the help database.
+
+xdimsum		men  = xdimsum$xdimsum.men,
+		hlp  = xdimsum$xdimsum.men,
+		sys  = xdimsum$xdimsum.hlp,
+		pkg  = xdimsum$xdimsum.hd,
+		src  = xdimsum$xdimsum.cl

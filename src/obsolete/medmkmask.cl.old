@@ -1,0 +1,110 @@
+procedure mkmask(image)
+
+# Modified 9 June 2000 by L. Davis to use new version of iterstat.
+# Modified 26 July 1993 by MD to call sigmanorm.
+# Modified July 1993 by MD to use makemask.cl; various structural changes.
+# Modified 2/28/93 by MD to exclude zero exposure regions from computation
+#     of pixel sigma.
+# Script mkmask creates the image mask used by slm.
+# 11 July 1992 by John S. Ward
+
+# Calls scripts makemask, sigmanorm, iterstat
+
+string	image		{prompt="Name of image for making mask"}
+real    nthresh         {prompt="Number of x suggested threshold"}
+int	nsmooth		{3,min=0,prompt="Size of filter for boxcar smoothing."}
+int	subsample	{1,min=1,prompt="Block averaging factor before median filtering"}
+int	filtsize	{15,min=1,prompt="Median filter size for local sky evaluation"}
+int	ngrow		{0,min=0,prompt="Width of rings to grow around masked objects"}
+bool	interact	{yes,prompt="Interactively examine normalized image?"}
+real	threshold	{prompt="Cutoff point for replacement",mode="q"}
+
+begin
+
+	string	img		# equals image
+	string	ext		# default extension
+	real	th		# equals threshold
+	real	recthresh	# recommended thresholding value
+	real	minval		# minimum value in mask image
+	real	maxexp		# peak exposure time
+	real	flagval		# flag value
+
+# Get query parameter.
+
+	img = image
+
+# Strip extension off file name.
+
+	fileroot (img,validim+)
+	img = fileroot.root
+	ext = fileroot.defextn
+
+# Normalize image to uniform pixel-to-pixel rms using square root of exposure map.
+# Resulting frame is called norm//img
+
+	sigmanorm (img,normimage="",prefix="norm")
+
+# Set flag value at 1 DN below minimum pixel value in normalized image.
+
+	minmax("norm"//img,update-,ver-)
+	minval = minmax.minval
+	flagval = minval - 1.
+
+# Identify regions with zero exposure time and exclude from sigma calculation
+# by flagging them to the flagval and excluding them from the iterstat calculation.
+
+	imcopy("exp"//img,"_zeroflag",ver-)
+	imreplace("_zeroflag",-1.,lower=INDEF,upper=0.)
+	imreplace("_zeroflag",0.,lower=0.,upper=INDEF)
+	imreplace("_zeroflag",flagval,lower=-1.,upper=-1.)
+	imarith("norm"//img,"+","_zeroflag","_norm"//img)
+
+# Calculate rms of masked, normalized image with iterative sigma rejection.
+# Recommended threshold (to be applied to boxcar smoothed data) is approx.
+# 4.5/nsmooth x unsmoothed rms.
+
+	iterstat ("_norm" // img, statsec="", nsigrej=5.0, maxiter=10.,
+	    lower=minval, upper=INDEF, verbose-, show-)
+	recthresh = 4.5 / nsmooth * iterstat.isigma
+	print ("Recommended thresholding level for mask is ",recthresh)
+
+# Allow user to interactively examine (unsmoothed) normalized image to set threshold
+# for masking.
+
+	if (interact) imexamine("norm"//img,display="display(image='$1',frame=$2,zs+)")
+
+# If interactive, query for final threshold to adopt.
+# If not interactive, either use the value specified by the user on the command
+# line, or if that is set to zero, then use the default recommended threshold.
+
+
+	if (interact) {
+		threshold = recthresh
+		th = threshold
+	   } else if (threshold != 0) {
+		th = nthresh * threshold
+	   } else {
+		th = recthresh
+	}
+
+# Apply thresholding to image using makemask.
+
+	makemask ("norm"//img,prefix="Mask_",headlist="",subsample=subsample,
+	   filtsize=filtsize,nsmooth=nsmooth,threshtype="constant",constthresh=th,
+	   ngrow=ngrow,statsec="",checklimits+,ver-)
+	imrename ("Mask_norm"//img//".pl","Mask_"//img//".pl",ver-)
+
+# Display original image and mask if interact=yes.
+
+	if (interact) {
+		display(img,1)
+		display("Mask_"//img//".pl",2,z1=0,z2=1,zsca-,zra-)
+	}
+
+# Clean up.
+
+	imdelete ("_norm"//img,ver-)
+	imdelete ("norm"//img,ver-)
+	imdelete ("_zeroflag",ver-)
+
+end

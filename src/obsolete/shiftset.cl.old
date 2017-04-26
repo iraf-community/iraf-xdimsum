@@ -1,0 +1,268 @@
+procedure shiftset(image_list, outimg)
+	
+# Replaced MKIMAGE with MKPATTERN -- 3/31/97 FV
+#
+# Modified 18 Oct 1993 by MD to strip extensions off filenames in order to
+# allow for the possibility that .pl masks may be used for exposure maps.
+# For the time being, however, all newly created exposure maps have default
+# extension format and real data values.   In fact, we force this by
+# specifying an extension for those images.
+# 
+# Also put in check for zero fraction shift (i.e. integer pixel offset only)
+# to speed this step up in certain cases.
+# Other minor changes made too.		-- MD 10/18/93
+#
+# Procedure to combine images outputs of different sets on the same object 
+# -- uses exp maps
+# based on script shift.cl
+# Peter Eisenhardt 
+# 16 May 1991 
+# Note shifts are input AS MEASURED, e.g. for two images, I and II with
+# the same object located at I[50,50] and II[53,57.2] the input list
+# would read:
+#
+# I 0. 0.
+# II 3. 7.2
+# This is opposite of sense in shift.cl and shiftpix.cl
+# slightly modified oxdim, oydim calc 22 May
+# Modified integer portion calculation 15 July 1991 to do
+# correct rounding
+# 19 Oct 1992 Update to allow for loss of "sum" option in combine
+# Replace either with imsum or imarith accumulator
+#
+# Requires fileroot.cl
+
+string image_list	{prompt="List of images, xshifts, yshifts (in pixels)"}
+string outimg		{prompt = "Output combined image name"}
+struct *imglist
+
+begin
+
+	real newx,newy			# fscan'ed values for x and y shift
+	real xfrac,yfrac		# fractional (subpixel) x and y shifts
+	real xmin,xmax,ymin,ymax	# extreme values for x and y shifts
+	int ixmin,ixmax,iymin,iymax   	# Integer values of extreme shifts
+	int ix,iy			# Start and finish column,row 
+	int fx,fy			#   for integer shift using copy 
+	int ixdim,iydim			# x and y dimensions of input images
+	int oxdim,oydim			# x and y dimensions of output image
+	string img,oimg			# input and output image names
+	string ext			# default extension
+	string rewind			# used to rewind imglist
+	string sect			# image section used for integer shift
+	string	headfile
+	struct	theadline
+
+	xmin=9E+32			# initial values -- set large so that
+	ymin=9E+32			# they will get reset
+	xmax=-2E+9	
+	ymax=-2E+9	
+
+# Get the query parameters
+
+	rewind=image_list
+	oimg=outimg
+
+# Strip extension off output image name if present.
+
+	fileroot (oimg,validim+)
+	oimg = fileroot.root
+	ext = fileroot.defextn
+
+# Load necessary packages
+#	images		# need imgets
+#	imdebug		# need mkimage
+
+# Find minimum x and y shift values
+# and maximum (shift + dimension) values to determine output image size
+
+	imglist=rewind			# rewind imglist
+	while (fscan (imglist,img,newx,newy) != EOF) {
+
+		imgets(img,"i_naxis1")
+		ixdim = int(imgets.value) 
+		imgets(img,"i_naxis2")
+		iydim = int(imgets.value) 
+
+# Correct for sign reversal between the measured difference II - I
+# and the required shift to superimpose II on I
+
+		newx=-1.*newx
+		newy=-1.*newy
+		if (newx < xmin)  {
+			xmin = newx
+		}
+		if (newy < ymin)  {
+			ymin = newy
+		}
+		if ((newx + ixdim) > xmax) {
+			xmax = newx + ixdim
+		}
+		if ((newy + iydim) > ymax) {
+			ymax = newy + iydim
+		}
+		print("xmax=",xmax,"xmin=",xmin,"ymax=",ymax,"ymin=",ymin)
+	}
+	ixmax=0
+	iymax=0
+	ixmin=0
+	iymin=0
+	if (xmax != 0.) ixmax=int(xmax+0.5*(xmax/abs(xmax)))
+	if (xmin != 0.) ixmin=int(xmin+0.5*(xmin/abs(xmin)))
+	if (ymax != 0.) iymax=int(ymax+0.5*(ymax/abs(ymax)))
+	if (ymin != 0.) iymin=int(ymin+0.5*(ymin/abs(ymin)))
+	print("ixmax=",ixmax,"ixmin=",ixmin,"iymax=",iymax,"iymin=",iymin)
+
+# Set dimensions for output image based on input image dimensions
+# and the extreme values
+# Ensure that the output image is actually big enough by adding small amount
+# (0.001) to avoid subtraction errors.
+
+	oxdim = int(0.501+xmax-xmin)
+	oydim = int(0.501+ymax-ymin)
+
+# Create output images here 19 Oct 1992
+
+	#mkimage("exp"//oimg//ext,oxdim,oydim,"r",0.,"Exposure Map")
+	#mkimage(oimg,oxdim,oydim,"r",0.,"shifted")
+	mkpattern ("exp"//oimg//ext, pattern="constant", option="replace",
+	    v1=0., title="Exposure map", pixtype="r", ndim=2, ncols=oxdim,
+	    nlines=oydim)
+	mkpattern (oimg, pattern="constant", option="replace", v1=0.,
+	    title="shifted", pixtype="r", ndim=2, ncols=oxdim, nlines=oydim)
+	print("Output image dimensions: ",oxdim,oydim)
+ 
+# Now do the shift 
+
+	imglist=rewind			# rewind imglist
+	while (fscan(imglist,img,newx,newy)!= EOF) {
+
+# Strip extension off image name.
+
+		fileroot (img,validim+)
+		img = fileroot.root
+
+# Scale the image up by its exposure time image
+
+		imarith(img,"*","exp"//img,"_T"//img)
+
+# Calculate integer shifts 
+
+		imgets(img,"i_naxis1")
+		ixdim = int(imgets.value) 
+		imgets(img,"i_naxis2")
+		iydim = int(imgets.value) 
+		newx=-1.*newx
+		newy=-1.*newy
+		ix=0
+		if (newx != 0.) ix=int(newx+0.5*(newx/abs(newx)))
+		xfrac=newx-ix
+		ix = 1 + ix - ixmin	
+		fx = ix + ixdim - 1		
+		print("ix=",ix,"fx=",fx)
+
+# For zero shift of 50 x 100,imcopy shift big[1:50,1:100]
+
+		iy=0
+		if (newy != 0.) iy=int(newy+0.5*(newy/abs(newy)))
+		yfrac=newy-iy
+		iy = 1 + iy - iymin	
+		fy = iy + iydim - 1
+
+# Construct the image section string
+
+		sect = "["//ix//":"//fx//","//iy//":"//fy//"]"
+		print("Section = ",sect)
+
+# Make big empty image 
+
+		#mkimage("bigshift"//img,oxdim,oydim,"r",0.,"shifted")
+		mkpattern ("bigshift"//img, pattern="constant",
+		    option="replace", v1=0., title="shifted", pixtype="r",
+		    ndim=2, ncols=oxdim, nlines=oydim)
+
+# Do fractional pixel shifts
+
+		if (xfrac == 0.0 && yfrac == 0.0) {
+			print("Fractional shift is zero for ", img)
+			imrename ("_T"//img,"shift"//img,ver-)
+		   } else {
+			imshift("_T"//img,"shift"//img,xsh=xfrac,ysh=yfrac,
+			   shifts_file="",interp="spline3",bound="constant",const=0.)
+			imdel("_T"//img,verify=no)
+			print("Fractional shift done for ", img)
+		}
+
+# and copy into the big image
+
+		imcopy("shift"//img,"bigshift"//img//sect)
+		imdel("shift"//img,verify=no)
+
+# Accumulator image inserted here 19 Oct 1992
+
+		imarith("bigshift"//img,"+",oimg,oimg,pixt="real",calc="real")
+		imdel("bigshift"//img,ver-)
+		print("integer shift done for "//img)
+
+# Now make the image to scale for position dependent exposure time
+
+		#mkimage("bigscale"//img,oxdim,oydim,"r",0.,"scaling")
+		mkpattern ("bigscale"//img, pattern="constant",
+		    option="replace", v1=0., title="scaling", pixtype="r",
+		    ndim=2, ncols=oxdim, nlines=oydim)
+
+# Do fractional shift for exposure image
+
+		if (xfrac == 0.0 && yfrac == 0.0) {
+			imcopy ("exp"//img,"bigscale"//img//sect,ver-)
+		   } else {
+			imshift("exp"//img,"_Texp"//img//ext,xsh=xfrac,ysh=yfrac,
+			   shifts_file="",interp="linear",bound="constant",const=0.)
+			imcopy("_Texp"//img//ext,"bigscale"//img//sect)
+			imdel("_Texp"//img,verify=no)
+		}
+
+# Accumulator image inserted here 19 Oct 1992
+
+		imarith("bigscale"//img,"+","exp"//oimg,"exp"//oimg,pixt="real",calc="real")
+		imdel("bigscale"//img,ver-)
+		print("scale image done for "//img)
+	}
+
+# Now combine the big images and divide by the scale
+
+	imarith(oimg,"/","exp"//oimg,oimg,divzero=0.)
+
+# Copy header information from 1st input frame into the final mosaic and 
+# exposure map images.  Set mosaic exposure time to 1 second, delete exposure
+# time info from exposure map, and reset image titles.  Add comment card about
+# origin of header information.
+
+	print ("Updating header information.")
+	imglist=rewind			# rewind imglist
+	if (fscan (imglist,img, newx, newy) != EOF) {
+		fileroot (img,validim+)
+		img = fileroot.root
+		headfile = mktemp("_header")
+		hfix (img,command="copy $fname "//headfile)
+		hfix (oimg,command="delete $fname ve- ; copy "//headfile//" $fname")
+		hselect (img,"title",yes) | scan(theadline)
+		hedit (oimg,field="exptime",value="1",add+,ver-,show+,update+)
+		hedit (oimg,field="title",value=theadline,ver-,show+,update+)
+		hedit (oimg,fields="OBJMASK,CRMASK,BPM,HOLES,SKYMED",delete+,ver-,show+,update+)
+		delete (headfile,ve-)
+		headfile = mktemp("_header")
+		hfix ("exp"//img,command="copy $fname "//headfile)
+		hfix ("exp"//oimg,command="delete $fname ve- ; copy "//headfile//" $fname")
+		hselect ("exp"//img,"title",yes) | scan(theadline)
+		hedit ("exp"//oimg,field="title",value=theadline,ver-,show+,update+)
+                time | scan (theadline) 
+                addcomment ("exp"//oimg,"dimsum.shiftset:  "//theadline,ver-)
+                addcomment (oimg,"dimsum.shiftset:  "//theadline,ver-)
+                addcomment (oimg,"dimsum.shiftset:  Header data copied from file "//img,ver-)
+		delete (headfile,ve-)
+	}
+
+	imglist = ""
+
+end

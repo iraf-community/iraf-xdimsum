@@ -1,0 +1,7 @@
+# Global environment definitions for the XDIMSUM package.
+
+reset	pkglibs			= "xdimsum$bin(arch)/,xdimsum$lib/"
+reset	xdimsumbin		= "xdimsum$bin(arch)/"
+reset	xdimsumlib		= "xdimsum$lib/"
+
+keep

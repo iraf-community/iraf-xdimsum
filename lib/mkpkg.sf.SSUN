@@ -1,0 +1,5 @@
+# Mkpkg special file list for SUN/IRAF, Solaris
+
+$set    XNO     = '& "$xc -cq -/libmil -p immatchx &"'
+
+$special "$(immatchx)src/geometry/":            geotran.x    $(XNO) ;

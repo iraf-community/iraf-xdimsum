@@ -1,0 +1,33 @@
+# Help directory for XDIMSUM package
+
+$doc		= "xdimsum$doc/"
+$src		= "xdimsum$src/"
+$demos		= "xdimsum$demos/"
+
+guide		hlp = doc$guide.hlp
+
+badpixupdate	hlp = doc$badpixupdate.hlp,	src = src$badpixupdate.cl
+demos		hlp = doc$demos.hlp,		src = demos$demos.cl
+iterstat	hlp = doc$iterstat.hlp,		src = src$iterstat.cl
+miterstat	hlp = doc$miterstat.hlp,	src = src$miterstat.cl
+makemask	hlp = doc$makemask.hlp,		src = src$makemask.cl
+maskdereg	hlp = doc$maskdereg.hlp,	src = src$maskdereg.cl
+maskfix		hlp = doc$maskfix.hlp,		src = src$maskfix.cl
+maskstat	hlp = doc$maskstat.hlp,		src = src$maskstat.cl
+mkmask		hlp = doc$mkmask.hlp,		src = src$mkmask.cl
+orient		hlp = doc$orient.hlp,		src = src$orient.cl
+xmosaic		hlp = doc$xmosaic.hlp,		src = src$xmosaic.cl
+sigmanorm	hlp = doc$sigmanorm.hlp,	src = src$sigmanorm.cl
+xdshifts	hlp = doc$xdshifts.hlp,		src = src$xdshifts.cl
+xfirstpass	hlp = doc$xfirstpass.hlp,	src = src$xfirstpass.cl
+xfshifts	hlp = doc$xfshifts.hlp,		src = src$xfshifts.cl
+xlist		hlp = doc$xlist.hlp,		src = src$xlist.cl
+xmaskpass	hlp = doc$xmaskpass.hlp,	src = src$xmaskpass.cl
+xmshifts	hlp = doc$xmshifts.hlp,		src = src$xmshifts.cl
+xmskcombine	hlp = doc$xmskcombine.hlp,	src = src$xmskcombine.cl
+xnregistar	hlp = doc$xnregistar.hlp,	src = src$xnregistar.cl
+xnslm		hlp = doc$xnslm.hlp,		src = src$xnslm.cl
+xnzap		hlp = doc$xnzap.hlp,		src = src$xnzap.cl
+xrshifts	hlp = doc$xrshifts.hlp,		src = src$xrshifts.cl
+xslm		hlp = doc$xslm.hlp,		src = src$xslm.cl
+xzap		hlp = doc$xzap.hlp,		src = src$xzap.cl

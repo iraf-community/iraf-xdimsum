@@ -1,0 +1,25 @@
+# Make the XDIMSUM Package
+
+$call   relink
+$exit
+
+update:
+        $call   relink
+        $call   install
+        ;
+
+
+relink:
+        $set    LIBS = "-lxtools"
+        $update libpkg.a
+        $omake  x_xdimsum.x
+        $link   x_xdimsum.o libpkg.a $(LIBS) -o xx_xdimsum.e
+        ;
+
+install:
+        $move   xx_xdimsum.e xdimsumbin$x_xdimsum.e
+        ;
+
+libpkg.a:
+	@xdsrc
+        ;

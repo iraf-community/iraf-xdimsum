@@ -1,0 +1,187 @@
+.help xzap Sep00 xdimsum
+.ih
+NAME
+xzap -- remove cosmic rays using median filtering
+.ih
+USAGE
+xzap inlist omasks outlist crmasks
+.ih
+PARAMETERS
+.ls inlist
+The list of input sky subtracted images to be cosmic ray corrected.
+.le
+.ls omasks
+The list of input inverse object core masks used to unzap cosmic rays detected
+in object regions or the input image keyword containing the name of the inverse
+object mask normally CROBJMAS. Inverse object core masks contain 0's in object
+regions and 1's elsewhere. Note that this is the inverse of the usual
+definition of an object mask.
+.le
+.ls outlist
+The list of output cosmic ray corrected images. The output image list can
+be the same as the input image list.
+.le
+.ls crmasks = ".crm"
+The list of output cosmic ray masks or the suffix appended to the output
+image name to create the output cosmic ray mask name. Cosmic ray masks contain
+1's in cosmic ray regions and 0's elsewhere. The name of the output cosmic ray
+mask is stored in the input and output image header keyword CRMASK.
+.le
+.ls statsec = ""
+The input image section used to compute the image statistics for each input
+image. By default the entire input image is used.
+.le
+.ls nsigrej = 3.0
+The rejection limits used to compute the image statistics in number of sigma.
+.le
+.ls maxiter = 20
+The maximum number of rejection cycles used to compute the image statistics.
+.le
+.ls checklimits = yes
+Check the input image data limits for the fast median filter ? If checklimits
+is yes then the lower and upper data limits are set to max (\fIzmin\fR,
+image_min) and min (\fIzmax\fR, image_max) respectively. If checklimits is no
+no image data limits checking is done.
+.le
+.ls zmin = -32768.0, zmax = 32767.0
+The default data limits supplied to the fast median filter if
+\fIchecklimits\fR is yes.
+.le
+.ls zboxsz = 5
+The size in pixels of the fast median filtering box.
+.le
+.ls nsigzap = 5.0
+The cosmic ray detection threshold in units of sky sigma.
+.le
+.ls nsigobj = 2.0
+The object detection threshold in units of sky sigma. If nsigobj <= 0.0
+only cosmic ray detection is performed.
+.le
+.ls subsample = 1
+The input image subsampling factor used in the object detection step.
+.le
+.ls skyfiltsize = 15
+The sky filter size used in the object detection step.
+.le
+.ls ngrowobj = 0
+The number of pixels to flag as a buffer around objects detected in the
+object detection step.
+.le
+.ls nrings = 0
+The cosmic ray growing region half-width in pixels.
+.le
+.ls nsigneg = 0.0
+The negative deviant pixel detection threshold in units of sky sigma.
+If nsigneg <= 0.0 negative feature detection is not performed.
+.le
+.ls del_crmask = no
+Delete the cosmic ray mask at task termination ? By default the cosmic
+ray masks are stored and used in later processing steps.
+.le
+.ls del_wimages = yes, del_wmasks = yes
+Delete the working images and masks ? By default the working median
+filtered image, the cosmic ray image, and the cosmic ray only image are
+deleted as well as the object detection and negative bad pixel detection
+masks if any. 
+.le
+.ih
+DESCRIPTION
+XZAP detects detects and removes cosmics rays from the input images
+\fIinlist\fR and writes the corrected images to \fIoutlist\fR. The output
+image list may be the same as the input image list. If input object
+masks \fIomasks\fR is defined then only cosmic rays in sky regions are
+detected and removed. These object mask consist of 0's and 1's with 0's
+defining the object regions in contrast to the usual XDIMSUM convention.
+The output cosmic ray mask are written to \fIcrmasks\fR. Cosmic
+ray masks consist of 1's and 0's with 1's defining the detected cosmic rays.
+
+XZAP computes the input image sigma using iterative rejection, pixels
+in the region defined by \fIstatsec\fR, and the rejection parameters
+\fInsigrej\fR and \fImaxiter\fR. The XDIMSUM task ITERSTAT is used to
+compute the sky sigma. More about the ITERSTAT algorithms can be found
+in the ITERSTAT help page.
+
+XZAP detects cosmic rays by median filtering the input image using
+a filter size of \fIzboxsz\fR and data limits determined by the minimum
+and maximum image pixel values, and subtracting it from the input image.
+Objects more than \fInsigzap\fR sky sigma above the background are
+assumed to be cosmic rays. The median filter can be protected against
+deviant values by setting \fIchecklimits\fR to yes and \fIzmin\fR and
+\fIzmax\fR to reasonable values.
+
+If \fInsigobj\fR is > 0.0 then the median filtered image is searched for
+objects with pixel values > \fInsigobj\fR * sky sigma above the background.
+The object detection code uses a smoothing value of 0, an input image
+subsampling factor of \fIsubsample\fR, a sky filter size of \fIskyfiltsize\fR
+pixels which applies to the subsampled image not the original image, and an
+object growing size of \fIngrowobj\fR. Cosmic rays detected in the object
+regions are removed from the cosmic rays masks. The object region mask
+is created with the XDIMSUM task MAKEMASK. More details about MAKEMASK
+can be found in the task help page.
+
+If \fInrings\fR > 0 then XZAP grows the detected cosmic rays to include
+a box 2 * nrings + 1 pixels wide centered on the detected cosmic ray.
+If \fInsigneg\fR > 0.0 then pixels more than nsigneg * sky sigma below
+background are considered to be cosmic rays and added to the cosmic ray
+mask. Finally if the input object masks defined by \fIomasks\fR exist
+cosmic rays detected in the input object regions are removed from the
+cosmic ray masks.
+
+Finally XSLM multiplies the final cosmic ray mask by the input image
+minus the median filtered image to produce a cosmic rays only image
+and subtracts this image from the input image to produce the cosmic ray
+corrected image.
+
+If \fIdel_crmask\fR = yes the output cosmic ray mask is deleted on task
+termination. If \fIdel_wimages\fR = no then the working median filtered,
+cosmic ray ,and cosmic ray only images are saved for later examination. If 
+\fIdel_wmasks\fR the working object detection and negative bad pixel
+detection masks are also saved.
+
+.ih
+EXAMPLES
+
+1. Detect cosmic rays in the demo sky subtracted images.
+
+.nf
+    cl> type sdemo.list
+    demo01.sub.imh
+    demo02.sub.imh
+    ...
+    demo25.sub.imh
+
+    cl> xzap @sdemo.list "" @sdemo.list ".crm" nsigrej=5.0 maxiter=10 \
+    subsample=2
+.fi
+
+2. Repeat example 1 but specify an output cosmic ray mask list.
+
+.nf
+    cl> xzap @sdemo.list "" @sdemo.list @crmlist nsigrej=5.0 maxiter=10 \
+    subsample=2
+.fi
+
+
+3. Repeat example 1 but set the input object mask list to the image header
+   keyword "CROBJMAS".
+
+.nf
+    cl> xzap @sdemo.list "CROBJMAS" @sdemo.list @crmlist nsigrej=5.0 \
+    maxiter=10 subsample=2
+.fi
+
+4. Repeat example 2 but specify an input inverse object core mask list.
+
+.nf
+    cl> xzap @sdemo.list @ocrmlist  @sdemo.list @crmlist nsigrej=5.0 \
+    maxiter=10 subsample=2
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xnzap, iterstat, fmedian, makemask
+.endhelp

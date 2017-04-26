@@ -1,0 +1,138 @@
+.help xmskcombine Sep00 xdimsum
+.ih
+NAME
+xmkscombine -- combine the bad pixel, cosmic ray, holes, and previous object masks
+.ih
+USAGE
+xmkscombine inlist bpmask crmasks hmasks omasks rmasks
+.ih
+PARAMETERS
+.ls inlist
+The input sky subtracted image list. 
+.le
+.ls bpmask 
+The input bad pixel mask common to all the input sky subtracted images.
+The bad pixel mask is assumed to consist of 1's and 0's where 0 defines
+a bad pixel. If no bad pixel mask is defined a virtual bad pixel mask
+consisting entirely of 1's is assumed.
+.le
+.ls crmasks 
+The list of input cosmic ray masks normally produced by the xzap or xnzap
+tasks. The cosmic ray mask is assumed to consist of 1's and 0's where 1
+defines a cosmic ray. Crmasks may define a list masks which has the same
+length as inlist, or an image keyword containing the name of the cosmic ray
+mask. The default keyword name  written by xzap and xnzap  is "CRMASK".
+If no cosmic ray mask is defined a virtual cosmic ray mask consisting
+entirely of 0's is defined.
+.le
+.ls hmasks
+The list of input holes masks normally produced by the xslm task. The holes
+mask is assumed to consist of 1's and 0's where 0 defines a hole or undefined
+pixel in the input image sky subtracted image which contains no good data.
+Hmasks may define a list of masks which has the same length as inlist or an
+image keyword containing the name of the holes mask. The default keyword name
+written by xslm  is "HOLES". If no holes mask is defined a virtual holes mask
+consisting entirely of 1's is defined.
+.le
+.ls omasks
+The list of input object masks normally produced by the mkmask / maskdereg
+tasks. The objects mask is assumed to consist of 1's and 0's where 1 defines
+and object and 0 defines the sky. Omasks may define a list of masks which has
+the same length as inlist or an image keyword containing the name of the object
+mask. The default keyword name written by maskdereg is "OBJMASK". If no objects
+mask is defined a virtual objects mask consisting entirely of 0's is defined.
+Object masks are only used if \fInprev_omask\fR > 0.
+.le
+.ls rmasks
+The list of output rejection masks or the string appended to the input sky
+subtracted image name to create the output rejection mask name. New rejection
+masks are not created if only the bad pixel mask \fIbpmask\fR is defined.
+Rejection masks consist entirely of 0's and 1's with 0's defining the bad
+pixels and are suitable for input to the XNREGISTAR task. The name of the
+rejection mask is written to the REJMASK keyword in the input image.
+.le
+.ls nprev_omask = 0
+The number of previous object masks to combine to create an objects mask.
+By default no object masks are defined. If nprev_omask is 1 then the
+object mask of the previous image is used to mask the current image,
+if \fInprev_omask\fR = 2 then the 2 previous object masks are used, etc.
+.le
+
+.ih
+DESCRIPTION
+
+XMSKCOMBINE combines the bad pixel mask \fIbpmask\fR, the cosmic ray
+masks \fIcrmasks\fR (normally written by the XZAP or XNZAP tasks), the holes
+masks \fIhmasks\fR (normally written by the XSLM task), and the previous object
+masks \fIomasks\fR (normally written by the MKMASK and MASKDEREG tasks)
+into combined rejection masks \fIrmasks\fR corresponding
+to the sky subtracted images in \fIinlist\fR.
+
+The final combined mask  which is suitable for input to the XNREGISTAR
+tasks consists entirely of 0's and 1's where 0's define the bad pixels.
+
+Users may befine their own \fIcrmasks\fR, \fIhmasks\fR, and \fIomasks\fR lists
+or set these parameters to the  appropriate input image header keyword,
+normally CRMASK, HMASK, and OBJMASK respectively.
+
+
+.ih
+EXAMPLES
+
+1. Combine the first pass bad pixel mask. Note that in this no new masks
+are written because the rejection mask is equal to the bad pixel mask. The
+bad pixel mask name is written to the REJMASK keyword.
+
+.nf
+    cl> type simlist
+    demo01.sub.im
+    demo02.sub.imh
+    demo03.sub.imh
+    ...
+    ...
+    demo24.sub.imh
+    demo25.sub.imh
+
+    cl> xmskcombine @simlist demo.pl "" "" "" ".rjm"
+.fi
+
+2. Combine the first pass bad pixel mask and the cosmic ray masks. The
+rejection mask name is written to the REJMASK keyword.
+
+.nf
+    cl> type simlist
+    demo01.sub.im
+    demo02.sub.imh
+    demo03.sub.imh
+    ...
+    ...
+    demo24.sub.imh
+    demo25.sub.imh
+
+    cl> xmskcombine @simlist demo.pl CRMASK "" "" ".rjm"
+.fi
+
+3. Combine the bad pixel, cosmic ray, holes, and previous object masks. The
+rejection mask name is written to the REJMASK keyword.
+
+.nf
+    cl> type simlist
+    demo01.sub.im
+    demo02.sub.imh
+    demo03.sub.imh
+    ...
+    ...
+    demo24.sub.imh
+    demo25.sub.imh
+
+    cl> xmskcombine @simlist demo.pl CRMASK HOLES OBJMASK ".rjm"
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xslm,xzap,xnzap,mkmask,mkdereg,xnregistar
+.endhelp

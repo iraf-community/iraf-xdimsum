@@ -1,0 +1,92 @@
+.help iterstat Sep00 xdimsum
+.ih
+NAME
+iterstat -- compute image statistics using iterative rejection
+.ih
+USAGE
+iterstat inlist
+.ih
+PARAMETERS
+.ls inlist
+The list of images for which the statistics are to be computed.
+.le
+.ls statsec = ""
+The input image section used to compute the statistics. Statsec is ignored
+if the input image name includes a section specification.
+.le
+.ls lower = INDEF
+The initial lower bad data limit.
+.le
+.ls upper = INDEF
+The initial upper bad data limit.
+.le
+.ls nsigrej = 3.0
+The k-sigma bad data rejection criterion.
+.le
+.ls maxiter = 20
+The maximum number of bad data rejection cycles.
+.le
+.ls show = yes
+Print the results for the final iteration ?
+.le
+.ls verbose = yes
+Print the results for each iteration ?
+.le
+.ls imean
+The returned image mean estimate.
+.le
+.ls isigma
+The returned image standard deviation estimate.
+.le
+.ls imedian
+The returned image median estimate.
+.le
+.ls imode
+The returned image mode estimate.
+.le
+.ih
+DESCRIPTION
+
+The mean, standard deviation, median, and mode are estimated for each input
+image in \fIinlist\fR using iterative rejection around the mean  and stored
+in the output parameters \fIimean\fR, \fIisigma\fR, \fIimedian\fR, and
+\fIimode\fR. Results for each iteration are printed on the terminal
+if \fIverbose\fR = yes, and for the final result only if \fIshow\fR = yes.
+
+If \fIstatsec\fR is defined and the input image name does not include an
+image section then the statistics are computed inside statsec. If the input
+image name does include an image section statsec is ignored. Initial values
+for the image statistics are computed after rejected data outside the limits
+defined by the \fIlower\fR and \fIupper\fR parameters.  New bad data
+limits are computed using the mean and sigma computed by the previous
+iteration and value of the \fInsigrej\fR parameter. ITERSTAT terminates if the
+number of iterations >= \fImaxiter\fR or if no new bad pixels are detected.
+
+ITERSTAT is a script task which makes repeated calls to IMSTATISTICS to compute
+the actual statistics. More information about the ITERSTAT algorithms can
+be found in the help page for the IMSTATISTICS task.
+
+.ih
+EXAMPLES
+
+1. Compute the statistics for an image.
+
+.nf
+cl> iterstat demo01
+.fi
+
+2. Compute the statistics for the list of demo images but print only the
+final result.
+
+.nf
+cl> iterstat @demo.list verbose-
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+imstatistics
+.endhelp

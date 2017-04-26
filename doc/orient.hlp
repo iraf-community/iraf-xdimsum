@@ -1,0 +1,67 @@
+.help orient Sep00 xdimsum
+.ih
+NAME
+orient -- orient an image to with 45 degrees of north is up and east is left
+.ih
+USAGE
+orient input y2n_angle
+.ih
+PARAMETERS
+.ls input
+The name of the input image to be reoriented.
+.le
+.ls y2n_angle
+The angle in degrees from the image y axis to the north axis measured from north
+through east. Y2n_angle must be between 0.0 and 360.0 degrees.
+.le
+.ls rotation = yes
+Is the rotation of the input image north axis to the east axis
+counter-clockwise ? 
+.le
+.ls invert = no
+Invert the original reorientation ? If invert = yes then the input image
+is returned to its original orientation.
+.le
+.ih
+DESCRIPTION
+ORIENT orients the input image \fIinput\fR  to within 45 degrees of north
+up and east to the left using the geometry parameters \fIy2n_angle\fR and
+\fIrotation\fR. The reorientation operation can be undone by setting
+\fIinvert\fR = yes.
+
+ORIENT is used by the XNREGISTAR task to orient the output combined image
+to within 45 degrees of north up and east left, and by the MASKDEREG task
+to return the object mask created from the combined image to the original
+orientation before creating object masks for the individual images.
+.ih
+EXAMPLES
+
+1. Reorient an image which is already in the default orientation, i.e.
+do nothing.
+
+.nf
+    cl> orient ss_demo01 0.0 rotation+ invert-
+.fi
+
+2. Reorient an image with north pointing left and east pointing down.
+
+.nf
+    cl> orient ss_demo01 90.0 rotation+ invert-
+.fi
+
+3. Reorient an image with north pointing left and east pointing up and
+then return it to the original orientation.
+
+.nf
+    cl> orient ss_demo01 90.0 rotation- invert-
+    cl> orient ss_demo01 90.0 rotation- invert+
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xnregistar, maskdereg
+.endhelp

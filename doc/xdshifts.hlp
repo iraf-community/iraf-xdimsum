@@ -1,0 +1,132 @@
+.help xdshifts Sep00 xdimsum
+.ih
+NAME
+xdshifts -- compute image offsets by displaying images and marking reference
+	    objects
+.ih
+USAGE
+xdshifts inlist refim shiftlist cradius
+.ih
+PARAMETERS
+.ls inlist
+The list of input images for which offsets are to be computed.
+.le
+.ls refim
+The reference image which defines the origin of the offsets. The reference
+images must be one of the images in the input image list. If refim is
+undefined the first input image is the reference image.
+.le
+.ls shiftlist
+The output offsets file suitable for input to the xnregistar task. The output
+file contains the input image name, the x offset in pixels, the y offset in
+pixels, and the default exposure time which is always 1 in columns 1 through 4.
+.le
+.ls cradius
+The centroiding radius in pixels.
+.le
+.ls datamin = INDEF, datamax = INDEF
+The lower and upper bad data limits used by the centroiding algorithm.
+.le
+.ls background = INDEF
+The mean background level for the centroiding algorithm.
+.le
+.ls niterate = 3
+The maximum number of iterations performed by the centroiding algorithm.
+.le
+.ls maxshifts = 5
+The maximum difference in pixels between the final computed offset and
+the offset predicted by displaying the images and marking reference stars
+in each image.
+.le
+.ls chkshifts = no
+Edit the lists of input image reference stars, the list of registration
+stars, and the final offsets interactively?
+.le
+.ih
+DESCRIPTION
+
+XDSHIFTS computes the offsets required to mosaic the images in the input
+image list \fIinlist\fR to the reference image \fIrefim\fR using the
+image display and the IMEXAMINE and IMCENTROID tasks and writes the results
+to the output file \fIshiftlist\fR.
+
+XDSHIFTS calls IMEXAMINE 3 times to perform the following functions:
+
+.nf
+    o display the images so that the user can select a reference star
+      common to all the images
+
+    o display the images so that the user can mark the position of the
+      reference star in each image and create a reference star list
+
+    o display the reference image so that the user can mark the positions
+      of several registration stars that will be used to a registration star
+      list
+.fi
+
+The IMEXAMINE 'p' and 'n' keystroke commands or the ":select <image>" commands
+are used to select which image to display.  The IMEXAMINE 'a' or 'r' keystroke
+command are used to mark and centroid the stars using pixels within
+\fIcradius\fR of the current best position. The 'q' keystroke terminates the
+current invocation of IMEXAMINE. More details on how IMEXAMINE computes the
+centroids and how to use the many features of IMEXAMINE can be found in the
+IMEXAMINE help page. If \fIchkshifts\fR is yes the user is given
+the opportunity to edit the reference star list and the registration star list.
+
+Given the input image list, the reference image, the reference star list, the
+registration star list, and the centroiding parameters \fIcradius\fR,
+\fIdatamin\fR, \fIdatamax\fR, \fIbackground\fR, \fIniterate\fR, and
+\fImaxshifts\fR, XDSHIFTS calls the IMCENTROID task to recenter the
+registration objects and compute the offsets of each input image relative to
+the reference image \fIrefim\fR. Detailed descriptions of the IMCENTROID task
+algorithms can be found in the IMCENTROID help page. If \fIchkshifts\fR is yes
+then the user is given the opportunity to  edit the offsets file before
+it is finally output.
+
+.ih
+EXAMPLES
+
+1. Compute the offsets file for the 25 sky subtracted demo images. Go ahead
+and register the images with xnregistar. The output image will appear in
+demo.mosaic and the output exposure map will appear in exp_demo.mosaic.
+
+.nf
+cl> type simlist
+demo01.sub.imh
+demo02.sub.imh
+demo03.sub.imh
+...
+demo24.sub.imh
+demo25.sub.imh
+
+cl> xdshifts @simlist "" offsets 5.0
+
+... the first image in simlist is displayed and imexamine starts
+... use the n and p keystrokes to step though the image list
+... select a reference object common to all image
+... type q to quit imexamine
+
+... the first image in simlist is displayed and imexamine starts
+... move cursor to reference object and type a
+... type n to display next image
+... repeat previous 2 steps until first image is redisplayed
+... type q to quit imexamine
+
+... the reference image is displayed
+... move cursor to registration objects and type a
+... type q to quit
+
+... results will appear in output
+
+cl> xnregistar offsets demo.pl "" "" mosaic mosaic.exp mosaic.corners
+
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+imexamine,imcentroid
+.endhelp

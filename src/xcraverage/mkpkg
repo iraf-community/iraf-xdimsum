@@ -1,0 +1,12 @@
+# Make the CRUTIL task
+
+$checkout libpkg.a ../../
+$update libpkg.a
+$checkin libpkg.a ../../
+$exit
+
+
+libpkg.a:
+	t_craverage.x <mach.h> <error.h> <imhdr.h>
+	t_crgrow.x <error.h> <imhdr.h>
+	;

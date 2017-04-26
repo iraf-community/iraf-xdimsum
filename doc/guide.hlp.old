@@ -1,0 +1,1184 @@
+.help guide May96 dimsum
+
+.ce
+\fBDIMSUM: Deep Infrared Mosaicing Software, um...\fR
+.ce
+\fBGuide to Using the REDUCE Task\fR
+
+.ce
+P. Eisenhardt (prme@kromos.jpl.nasa.gov)
+.ce
+M. Dickinson (med@stsci.edu)
+.ce
+S.A. Stanford
+.ce
+J. Ward
+.ce
+F. Valdes (fvaldes@noao.edu)
+
+.ce
+June 1996
+
+
+.nh
+Introduction
+\fBDIMSUM\fR is a package for producing accurate sky subtracted images from
+sets of dithered observations.  While the observations need not be in the
+infrared, the dominance of the variable sky background in infrared data
+requires dithering of many short exposures and the recombination of the
+images with careful sky subtraction to produce deep images.  Hence the
+package is called "Deep Infrared Mosaicing Software, um" or DIMSUM.
+
+The \fBdimsum\fR package was developed, and continues to be developed, by
+practicing astronomers.  Thus, the documentation is limited.  However, the
+software is of sufficient generality and usefulness that we are making it
+available to the community.  Users may contact the IRAF group
+(iraf@noao.edu) for help with the software installation.  Questions about
+the technical details and comments and suggestions may be directed to the
+authors.  We will attempt to be responsive given the constraints of our
+professional work.
+
+This guide describes the master processing task \fBreduce\fR.  This task
+combines the various steps described below.  Each step is performed by one
+or more of the subtasks of the package.  By use of the option switches one
+may use \fBreduce\fR alone to perform any combination of operations.
+
+The \fBreduce\fR task and most of the subtasks are CL scripts.  Users
+are welcomed and encouraged to examine the scripts to gain an understanding
+of the algorithms and parameters.  The script source code is
+found in the logical directory dimsum$src.  Of course, keep in mind,
+as noted earlier, that the authors developed this software over time
+as they reduced their own data and they are not primarily software
+developers.
+.nh
+Outline
+The following is a brief outline of the steps performed by
+\fBdimsum.reduce\fR.  The are two major stages called the first pass and
+the mask pass.  Both passes have similar steps and produce a sky
+subtracted, registered, and combined final image.  The first pass produces
+an integer registered image with no knowledge from the final mosaic image.
+The mask pass feeds back information about the positions of the  objects in
+the first pass mosaic image, which will be better defined and go fainter
+than the individual exposures, to improve the sky subtraction.  It also
+does subpixel registration in producing the final mosaic image.
+
+.nh 2
+First Pass
+.nh 3
+Sky Subtraction
+A scaling factor for each image is computed using a 5 sigma iterated
+rejection about the mean.  The scaling factor is the median of the
+unrejected pixels.
+
+For each image in the input list a specified number of neighboring images
+(\fInmed\fR) in the list are selected.  Except at the ends of the list (see
+\fInskymin\fR) there is usually an equal number of images before and after
+the image to be sky subtracted.  At each pixel a specified number of low
+and high pixels (\fIrjct\fR) in the scaled images are rejected and the
+average of the remainder is computed as the sky for that pixel.  The sky
+values are subtracted from the scaled image to create a sky subtracted
+image.
+.nh 3 
+Fixing Bad Pixels
+A bad pixel file (\fIbpimage\fR) is used to replace bad pixels by
+interpolation.  The bad pixel file is an image with values of zero for bad
+pixels and one for good pixels.
+.nh 3
+Zapping Cosmic Rays
+An object mask is made (see "Making Masks" below) from the image data.
+Note that this will only find the strongest objects and later in the mask
+pass an object mask determined from the combined frame will be used.
+Cosmic rays are found using a theshold algorithm applied to the ratio of
+the image and a median filtered image ("unsharp masking").  Only pixels
+outside the object mask are considered.  The detected cosmic rays are
+replaced by the local median.  A cosmic ray mask is created to record the
+location of the cosmic rays.  If any pixel is found to have cosmic rays
+occuring in more than two images the pixel is considered suspect and the
+pixel is flagged in the bad pixel mask if \fIfp_badpixupdate\fR is set.
+.nh 3
+Making the Shift List
+A shift list is used to define the offsets between the images.  This list
+may be created in \fBreduce\fR provided there is at least one common object
+in all the images.  This is done by displaying each image and allowing you
+to mark and measure the positions of the objects.  During this process you
+can also evaluate the quality of each sky subtracted image and eliminate
+poor ones from the later registration and combining.
+
+The task \fBimexamine\fR is used to display the images.  There are two
+stages.  First the position of one object which is common to all images is
+marked using the 'a' or 'r' keystrokes.  The measured positions are written
+to a logfile.  To scroll through the list of images use the 'n' keystroke
+and use 'q' to finish.  The measurements are used to provide a first guess
+for the shifts.  The parameter \fIchk\fR allows checking and editing the
+measurments after quiting \fBimexamine\fR.
+
+The second stage is to select a set of objects to be used in determining
+the shifts.   A reference image (\fIref_img\fR) near the center of the
+dithering pattern is display with \fBimexamine\fR and the objects are again
+marked with 'a' or 'r' and the results written to a different logfile.  The
+objects need not be in common with all images.  This step is completed
+using the 'q' keystroke.  The parameter \fIchk\fR will also allow you to
+review and edit this logfile.
+
+The set of objects from the second stage are used to construct the
+shift list using the task \fBimcentroid\fR.  The last step is then
+to review the shift list with an editor.
+
+The shift list is a file with lines having four columns.  The columns are
+the image name, the shifts in x and y, and a weight value.  The weight
+value is generally one to include the image using its exposure time.  A
+value of zero may used to exclude an image from the final mosaic.
+.nh 3
+Registration
+This step shifts the images, combines them, and orients the final
+image.  In the first pass the images are shifted by integer amounts.
+A matching exposure map is also created.
+.nh 2
+Mask Pass
+.nh 3
+Making Masks
+There are two masks of where the objects in the images are located which
+are created from the first pass mosaic image and used in this pass.  The
+first mask uses a higher threshold to identify only the brighter parts of
+the objects.  This is used to check that the cores of the objects not seen
+in the individual images were not identified earlier as cosmic rays.  The
+second mask uses a lower threshold to identify extended regions of the
+images covered by the objects.  This mask is used to exclude those regions
+from the sky subtraction.
+
+A mask is made from the first pass image as follows.  The image is
+divided by the square root of the exposure map to account for variations
+in the sky noise due to varying exposure times at each pixel.  The
+sky RMS is computed using iterative sigma rejection and a threshold
+value in terms of this RMS is determined.  The user may examine the
+uniform RMS image with \fBimexamine\fR in order to recommend a threshold
+or the \fInsig_cr_msk\fR value will be used.  Finally an algorithm
+which tracks the sky and threshold detects above the sky is applied.
+A mask of zero (sky) and one (object) is created from the pixels above
+the threshold.
+
+If the \fIchk\fR parameter is set the mosaic and mask images are displayed
+in two frames and you may blink them.  A query is given to allow repeating
+the mask making with a new threshold.
+
+Once the masks are made from the objects in the first pass mosaic, the
+shiftlist is used to make masks for each original image.  Any cosmic rays
+identifications in the cosmic ray masks of the object which are within the
+individual object masks are then removed.
+.nh 3
+Sky Subtraction
+The sky subtraction is repeated much as was done in the first pass
+except that the pixels in the individual masks derived from the first
+pass mosaic image are ignored.
+.nh 3 
+Fixing Bad Pixels
+The bad pixels from the bad pixel image are used to replace bad pixels
+as before.  Note that the bad pixel file may have been updated by
+the detection of multiple cosmic ray events at the same pixel.
+.nh 3
+Zapping Cosmic Rays
+The same algorithm as in the first pass is used except that the object mask
+for the image created from the first pass mosaic is used to exclude object
+pixels from being found as cosmic rays.  Also, as before, pixels found to
+have cosmic rays occuring in more than two images the pixel are flagged in
+the bad pixel mask if \fIfp_badpixupdate\fR is set.
+.nh 3
+Registration
+The final step is to again shift, combine, and orient the final mosaic.  In
+this second, more careful, pass subpixel shifts are considered.  The
+current algorithm block replicates each image by a factor of four and
+shifts the images to a resolution of 1/4 of a pixel.  The final mosaic
+image from the mask pass is, therefore, approximately four times larger in
+each dimension with sixteen times more pixels than the first pass image.
+As before an exposure map is also created.
+
+.nh 1
+Example
+One of the best ways to learn the use of a task is through an example.
+The following example uses artificial data which you may also create
+and then follow along with the reduction.  This example shows all
+the steps in the most interactive mode.
+
+The first step is to load the package.
+
+.nf
+cl> \fBdimsum\fR
+          +--------------------------------------------------------------------+
+          |                             DIMSUM                                 |
+          |               Deep Infrared Mosaicing Softwear, um...              |
+          |        Painstakingly created by P. Eisenhardt, M. Dickinson,       |
+          |                S.A. Stanford, J. Ward, etc. etc. etc.              |
+          |   Contact prme@kromos.jpl.nasa.gov or md@copacabana.berkeley.edu   |
+          |             with your questions, accolades and brickbats.          |
+          +--------------------------------------------------------------------+
+      badpixupdate  maskdereg     orient        registar      xfirstpass
+      bundle        maskstat      photcheck     shiftfix      xlist
+      demos         mkmask        photdiff      shiftset      xmaskpass
+      magshiftfix   mosaic        reduce        sigmanorm     xslm
+.fi
+
+The only tasks to be concerned about are \fBdemos\fR and \fBreduce\fR.  The
+other tasks are called by \fBreduce\fR.
+
+The artificial demonstration data is created by 
+.nf
+di> \fBdemos\fR
+                MENU of DIMSUM Demonstrations
+
+     mkdimsum - Make DIMSUM test data (25 100x100 images)
+Demo name: \fBmkdimsum\fR
+Creating master field (please be patient) ...
+Creating truth image demo_truth ...
+Creating DIMSUM bad pixel mask demo.pl ...
+Creating image list demo.list ...
+Creating DIMSUM shift list demo.shiftlist ...
+Creating imcombine offset file demo.imc ...
+Creating demo01 ...
+Creating demo02 ...
+Creating demo03 ...
+Creating demo04 ...
+Creating demo05 ...
+Creating demo06 ...
+Creating demo07 ...
+Creating demo08 ...
+Creating demo09 ...
+Creating demo10 ...
+Creating demo11 ...
+Creating demo12 ...
+Creating demo13 ...
+Creating demo14 ...
+Creating demo15 ...
+Creating demo16 ...
+Creating demo17 ...
+Creating demo18 ...
+Creating demo19 ...
+Creating demo20 ...
+Creating demo21 ...
+Creating demo22 ...
+Creating demo23 ...
+Creating demo24 ...
+Creating demo25 ...
+di> \fBdir\fR
+demo.imc        demo04.imh      demo11.imh      demo18.imh      demo25.imh
+demo.list       demo05.imh      demo12.imh      demo19.imh      demo_truth.imh
+demo.pl         demo06.imh      demo13.imh      demo20.imh      pixels
+demo.slist      demo07.imh      demo14.imh      demo21.imh      
+demo01.imh      demo08.imh      demo15.imh      demo22.imh      
+demo02.imh      demo09.imh      demo16.imh      demo23.imh      
+demo03.imh      demo10.imh      demo17.imh      demo24.imh      
+.fi
+
+The files demo??.imh are 25 dithered 100x100 images with low S/N in an
+approximate 5x5 pattern.  The dither is small so there are large amounts of
+overlap.  There is also a bad column and a couple of bad pixels are shown
+by the pixel mask file demo.pl.  Finally each image has a few cosmic rays.
+The list of images is given in the file demo.list which can be used as an
+@file. The image demo_truth.imh is the image from which the dithered images
+were extracted.  The goal of \fBdimsum\fR is to come as close to this image
+as possible.
+
+Now we are ready to set up \fBreduce\fR.  Because of small changes in
+the tasks called by the \fBdimsum\fR scripts there is a package parameter
+that is used to indicate the version of IRAF you are using.  The values
+are "V2.10.2", "V2.10.3", "V2.10.4", and "V2.11".  The first one also
+may be used with "V2.10-V2.10.1".  So look at the first line of the
+login banner when you start the \fBcl\fR and enter the appropriate version
+(ignoring the patch levels).
+
+.nf
+di> \fBdimsum.iraf = "V2.10.4"\fR
+.fi
+
+Now use \fBeparam\fR to set the task parameters.  In the example we
+will set all the processing options to "yes" to do all the steps and
+to use the most interactive option.  Be sure to have an image display
+window open.
+
+.nf
+di> \fBunlearn reduce\fR
+di> \fBepar reduce\fR
+                                   I R A F  
+                    Image Reduction and Analysis Facility
+PACKAGE = dimsum
+   TASK = reduce
+
+img_lst =  \fB@demo.list\fR  List of images
+out_img =        \fBdemo\fR  Base name for output firstpass and maskpass imag
+(ref_img=      \fBdemo13\fR) Name of a reference image (WITHOUT prefix) in im
+(prefix =         ss_) Prefix for sky-subtracted images
+(chk    =         \fByes\fR) Do you want chances to check shifts and masks?
+kpchking=         yes  Keep checking mask?
+(fp_xslm=         yes) Do firstpass xslm?
+(fp_fixp=         yes) Do firstpass fixpix?
+(fp_xzap=         yes) Do firstpass xzap?
+(fp_badp=         yes) Do firstpass bad pixel file update?
+(mk_shif=         yes) Determine shifts?
+(fp_regi=         yes) Do firstpass registar?
+(masking=         yes) Make masks?
+(maskder=         yes) Deregister masks?
+(mp_xslm=         yes) Do maskpass xslm?
+(mp_fixp=         yes) Do maskpass fixpix?
+(mp_xzap=         \fByes\fR) Do maskpass xzap?
+(mp_badp=         yes) Do maskpass bad pixel file update?
+(mp_regi=         yes) Do maskpass registar?
+(nmed   =           6) Number of images to use in sky frame
+(bpimage=     \fBdemo.pl\fR) Bad pixel mask image
+(mfac   =           4) Mag factor for maskpass image
+(secpexp=         60.) Seconds per unit exposure time
+(ncoavg =           1) Number of internal coaverages per frame
+(rjct   =           1) Number of pixels for xslm minmax reject
+(nskymin=           3) Minimum number of frames to use for sky
+(forcesc=         yes) Force recalculation of image medians in sky scal
+(premask=         yes) Mask working sky images in maskpass?
+(pixin  =         yes) Are input coords measured pixels of ref object?
+(scale_x=          1.) x pixels per ab coord unit
+(scale_y=          1.) y pixels per ab coord unit
+(ang_a2x=          0.) Angle in degrees from a CCW to x
+(senseab=         yes) Is a through b counterclockwise?
+(ang_y2N=          0.) Angle in degrees from y to N dir N through E
+(rotatio=         yes) Is N through E counterclockwise?
+(nsig_ob=         1.1) factor x suggested threshold for object masking
+(nsig_cr=         1.5) factor x suggested threshold for cr masking
+(ilist  =            )
+(mode   =           q)
+.fi
+
+Now we are ready to reduce the data set.  Below we will intersperse
+comments with the output.
+
+The task starts by querying for parameters.  The base name will be
+used for creating output images with various extensions.  The
+hidden parameter \fIprefiX\fR is also used to create new image names
+for the sky subtracted images.
+
+.nf
+di> \fBreduce\fR
+Type 'phelp reduce' and 'phelp guide' for a modicum of help
+ 
+Remember to set dimsum.iraf, badpix, secpexp, and ncoavg parameters
+ 
+List of images (@demo.list): 
+Base name for output firstpass and maskpass images (demo): 
+.fi
+
+The first step is computing sky scaling factors using the algorithm
+described earlier.
+
+.nf
+--------Sky Subtracting------------
+Calculating scaling for demo01
+Calculating scaling for demo02
+Calculating scaling for demo03
+Calculating scaling for demo04
+Calculating scaling for demo05
+Calculating scaling for demo06
+Calculating scaling for demo07
+Calculating scaling for demo08
+Calculating scaling for demo09
+Calculating scaling for demo10
+Calculating scaling for demo11
+Calculating scaling for demo12
+Calculating scaling for demo13
+Calculating scaling for demo14
+Calculating scaling for demo15
+Calculating scaling for demo16
+Calculating scaling for demo17
+Calculating scaling for demo18
+Calculating scaling for demo19
+Calculating scaling for demo20
+Calculating scaling for demo21
+Calculating scaling for demo22
+Calculating scaling for demo23
+Calculating scaling for demo24
+Calculating scaling for demo25
+.fi
+
+Once the scaling factors are determined the neighboring images from
+the input list are used to determine a sky for subtraction.  The
+parameters are set to use the three previous and three following images.
+
+.nf
+Sky subtracting demo01
+Frame no. 1  sky frames:  start = 1   finish = 4   nreject = 1 
+Sky subtracting demo02
+Frame no. 2  sky frames:  start = 1   finish = 4   nreject = 1 
+Sky subtracting demo03
+Frame no. 3  sky frames:  start = 1   finish = 5   nreject = 1 
+Sky subtracting demo04
+Frame no. 4  sky frames:  start = 1   finish = 7   nreject = 1 
+Sky subtracting demo05
+Frame no. 5  sky frames:  start = 2   finish = 8   nreject = 1 
+Sky subtracting demo06
+Frame no. 6  sky frames:  start = 3   finish = 9   nreject = 1 
+Sky subtracting demo07
+Frame no. 7  sky frames:  start = 4   finish = 10   nreject = 1 
+Sky subtracting demo08
+Frame no. 8  sky frames:  start = 5   finish = 11   nreject = 1 
+Sky subtracting demo09
+Frame no. 9  sky frames:  start = 6   finish = 12   nreject = 1 
+Sky subtracting demo10
+Frame no. 10  sky frames:  start = 7   finish = 13   nreject = 1 
+Sky subtracting demo11
+Frame no. 11  sky frames:  start = 8   finish = 14   nreject = 1 
+Sky subtracting demo12
+Frame no. 12  sky frames:  start = 9   finish = 15   nreject = 1 
+Sky subtracting demo13
+Frame no. 13  sky frames:  start = 10   finish = 16   nreject = 1 
+Sky subtracting demo14
+Frame no. 14  sky frames:  start = 11   finish = 17   nreject = 1 
+Sky subtracting demo15
+Frame no. 15  sky frames:  start = 12   finish = 18   nreject = 1 
+Sky subtracting demo16
+Frame no. 16  sky frames:  start = 13   finish = 19   nreject = 1 
+Sky subtracting demo17
+Frame no. 17  sky frames:  start = 14   finish = 20   nreject = 1 
+Sky subtracting demo18
+Frame no. 18  sky frames:  start = 15   finish = 21   nreject = 1 
+Sky subtracting demo19
+Frame no. 19  sky frames:  start = 16   finish = 22   nreject = 1 
+Sky subtracting demo20
+Frame no. 20  sky frames:  start = 17   finish = 23   nreject = 1 
+Sky subtracting demo21
+Frame no. 21  sky frames:  start = 18   finish = 24   nreject = 1 
+Sky subtracting demo22
+Frame no. 22  sky frames:  start = 19   finish = 25   nreject = 1 
+Sky subtracting demo23
+Frame no. 23  sky frames:  start = 21   finish = 25   nreject = 1 
+Sky subtracting demo24
+Frame no. 24  sky frames:  start = 22   finish = 25   nreject = 1 
+Sky subtracting demo25
+Frame no. 25  sky frames:  start = 22   finish = 25   nreject = 1 
+.fi
+
+This step produces the files "ss_*".  The bad pixels, as defined in
+the bad pixel file, are interpolated away in the sky subtracted images.
+
+.nf
+---------Fixing bad pixels----------
+Fixing bad pixels in file ss_demo01
+demo.pl -> demo.imh
+Image: demo.imh (int) -> Image: demo.imh (short)
+Fixing bad pixels in file ss_demo02
+Fixing bad pixels in file ss_demo03
+Fixing bad pixels in file ss_demo04
+Fixing bad pixels in file ss_demo05
+Fixing bad pixels in file ss_demo06
+Fixing bad pixels in file ss_demo07
+Fixing bad pixels in file ss_demo08
+Fixing bad pixels in file ss_demo09
+Fixing bad pixels in file ss_demo10
+Fixing bad pixels in file ss_demo11
+Fixing bad pixels in file ss_demo12
+Fixing bad pixels in file ss_demo13
+Fixing bad pixels in file ss_demo14
+Fixing bad pixels in file ss_demo15
+Fixing bad pixels in file ss_demo16
+Fixing bad pixels in file ss_demo17
+Fixing bad pixels in file ss_demo18
+Fixing bad pixels in file ss_demo19
+Fixing bad pixels in file ss_demo20
+Fixing bad pixels in file ss_demo21
+Fixing bad pixels in file ss_demo22
+Fixing bad pixels in file ss_demo23
+Fixing bad pixels in file ss_demo24
+Fixing bad pixels in file ss_demo25
+.fi
+
+Cosmic rays are found and replaced in the next step.
+
+.nf
+---------------Zapping cosmic rays---------------
+Working on ss_demo01 ---ZAP!--> ss_demo01
+     Thresholding image at level 123.2522592
+Working on ss_demo02 ---ZAP!--> ss_demo02
+     Thresholding image at level 121.266304
+Working on ss_demo03 ---ZAP!--> ss_demo03
+     Thresholding image at level 112.1568816
+Working on ss_demo04 ---ZAP!--> ss_demo04
+     Thresholding image at level 110.7964415
+Working on ss_demo05 ---ZAP!--> ss_demo05
+     Thresholding image at level 111.3760094
+Working on ss_demo06 ---ZAP!--> ss_demo06
+     Thresholding image at level 113.7805911
+Working on ss_demo07 ---ZAP!--> ss_demo07
+     Thresholding image at level 111.9656453
+Working on ss_demo08 ---ZAP!--> ss_demo08
+     Thresholding image at level 109.6498382
+Working on ss_demo09 ---ZAP!--> ss_demo09
+     Thresholding image at level 109.0383668
+Working on ss_demo10 ---ZAP!--> ss_demo10
+     Thresholding image at level 111.0720215
+Working on ss_demo11 ---ZAP!--> ss_demo11
+     Thresholding image at level 115.3913998
+Working on ss_demo12 ---ZAP!--> ss_demo12
+     Thresholding image at level 114.1535733
+Working on ss_demo13 ---ZAP!--> ss_demo13
+     Thresholding image at level 111.7433494
+Working on ss_demo14 ---ZAP!--> ss_demo14
+     Thresholding image at level 114.78424
+Working on ss_demo15 ---ZAP!--> ss_demo15
+     Thresholding image at level 115.6892042
+Working on ss_demo16 ---ZAP!--> ss_demo16
+     Thresholding image at level 119.1768534
+Working on ss_demo17 ---ZAP!--> ss_demo17
+     Thresholding image at level 115.94367044
+Working on ss_demo18 ---ZAP!--> ss_demo18
+     Thresholding image at level 119.9937241
+Working on ss_demo19 ---ZAP!--> ss_demo19
+     Thresholding image at level 114.9838365
+Working on ss_demo20 ---ZAP!--> ss_demo20
+     Thresholding image at level 118.6553041
+Working on ss_demo21 ---ZAP!--> ss_demo21
+     Thresholding image at level 121.2542776
+Working on ss_demo22 ---ZAP!--> ss_demo22
+     Thresholding image at level 117.9077447
+Working on ss_demo23 ---ZAP!--> ss_demo23
+     Thresholding image at level 121.44092993
+Working on ss_demo24 ---ZAP!--> ss_demo24
+     Thresholding image at level 128.5635335
+Working on ss_demo25 ---ZAP!--> ss_demo25
+     Thresholding image at level 130.121414
+------- Updating bad pixel file with badpixupdate. -------
+.fi
+
+The last output line indicated that any pixels which had three or more
+cosmic rays are marked as bad pixels.
+
+The next step is the interative making of the shift list.  The sky
+subtracted images will be loaded into the image display by \fBimexamine\fR
+and the star above and slightly to the right of the galaxy is marked
+in each image by pointing the cursor at the star and typing 'a'.  The
+object selected must be common to all images.  The first image is display
+automatically and then subsequent images are displayed by typing 'n'.  DO
+NOT TYPE 'q' UNTIL ALL IMAGES HAVE BEEN MARKED.
+
+.nf
+--------Making the shiftlist----------
+ 
+Entering imexamine, select a star present in all images 
+and measure it with keystroke (a or r) in each image,
+go on to each image with n and q after last image.
+ 
+Log file demo.exam open
+z1=-147.1968 z2=197.6396
+#   COL    LINE    RMAG     FLUX      SKY   N  RMOM ELLIP    PA     PEAK  FWHM
+  64.43   47.45   20.48   6406.6     1.91  79  4.23 0.084 -66.6   348.96  3.90
+z1=-196.8535 z2=147.1025
+  57.65   46.79   20.34   7289.9   -12.75  80  4.38 0.247 -62.8   358.13  4.02
+z1=-196.7153 z2=146.0894
+  50.81   46.65   20.69   5298.5    -4.37  80  3.64 0.404  85.7   390.29  3.38
+z1=-129.751 z2=173.2378
+  44.28   46.46   20.36   7167.0   -24.44  80  4.25 0.104 -77.7   336.21  4.33
+z1=-166.1011 z2=185.98
+  37.91   46.59   20.55   5999.2   -15.16  79  3.98 0.314  64.7   433.21  3.06
+z1=-141.7368 z2=334.6152
+  62.36   39.82   20.54   6108.9    -6.06  79  4.09 0.052  75.4   283.43  4.56
+z1=-180.7764 z2=309.7374
+  55.94   39.68   20.39   7012.2    -5.26  78  3.96 0.037  48.6   435.88  3.60
+z1=-153.4556 z2=257.8784
+  51.14   41.34   20.36   7159.2   -17.86  78  4.40 0.120  26.6   389.83  3.66
+z1=-202.3242 z2=232.0098
+  44.62   40.71   20.66   5445.6    -5.26  80  3.88 0.134 -48.0   366.77  3.53
+z1=-140.5879 z2=310.1313
+  38.09   40.69   20.60   5759.9    -3.92  78  3.76 0.115 -14.9   359.87  3.73
+z1=-172.2832 z2=228.1123
+  62.91   34.36   20.62   5646.8     1.21  78  3.70 0.159  86.3   371.63  3.61
+z1=-182.394 z2=188.1392
+  56.78   33.65   20.50   6337.4     4.74  80  3.89 0.353  60.4   423.85  3.28
+z1=-238.5684 z2=231.3682
+  50.42   33.72   20.73   5104.7    13.96  81  3.35 0.252 -83.1   309.83  4.08
+z1=-159.8403 z2=253.0239
+  43.78   33.37   20.71   5185.7    -9.61  80  2.92 0.509  11.5   355.13  3.85
+z1=-207.0259 z2=187.7573
+  38.87   35.02   20.95   4181.9     3.05  77  2.53 0.388  50.1   413.95  2.97
+z1=-178.7661 z2=178.6211
+  63.77   28.22   20.45   6634.2    -8.94  79  4.28 0.182  -9.9   367.28  3.79
+z1=-180.5317 z2=174.3682
+  57.22   28.40   20.63   5622.1    -4.92  80  3.19 0.620  82.8   450.25  3.27
+z1=-152.6626 z2=179.3413
+  50.57   27.98   20.31   7538.0   -15.53  78  4.25 0.035   4.4   461.57  3.39
+z1=-190.6323 z2=220.793
+  44.13   27.44   20.66   5469.8    -3.15  79  3.35 0.285 -79.0   358.91  3.80
+z1=-142.9517 z2=161.8154
+  37.78   27.41   20.46   6570.0    -3.22  80  4.25 0.122 -53.7   385.34  3.66
+z1=-159.7183 z2=371.5781
+  62.59   21.10   20.63   5598.3     1.60  79  3.38 0.454  62.7   365.72  3.77
+z1=-198.7695 z2=351.3057
+  57.55   22.98   20.67   5380.2    -5.57  79  3.64 0.207  57.4   281.00  4.47
+z1=-169.0625 z2=357.7622
+  51.31   22.19   20.52   6202.0    -3.33  79  3.63 0.181   8.0   367.96  3.95
+z1=-174.8667 z2=326.6787
+  45.01   21.72   20.25   7931.4   -33.02  77  4.12 0.161  87.2   527.28  2.96
+z1=-230.1367 z2=347.0215
+  37.91   21.61   20.49   6372.8    -5.36  79  3.75 0.149 -78.4   334.88  4.30
+.fi
+
+Because we have \fIchk\fR = yes the output of \fBimexamine\fR is shown with
+an editor.  This allows deleting multiple measurements or other unnecessary
+data.  In this example there are not mistakes and this is what the file
+should look like.
+
+.nf
+# [1] ss_demo01 - Example artificial galaxy cluster
+#   COL    LINE    RMAG     FLUX      SKY   N  RMOM ELLIP    PA     PEAK  FWHM
+  64.43   47.45   20.48   6406.6     1.91  79  4.23 0.084 -66.6   348.96  3.90
+# [2] ss_demo02 - Example artificial galaxy cluster
+  57.65   46.79   20.34   7289.9   -12.75  80  4.38 0.247 -62.8   358.13  4.02
+# [3] ss_demo03 - Example artificial galaxy cluster
+  50.81   46.65   20.69   5298.5    -4.37  80  3.64 0.404  85.7   390.29  3.38
+# [4] ss_demo04 - Example artificial galaxy cluster
+  44.28   46.46   20.36   7167.0   -24.44  80  4.25 0.104 -77.7   336.21  4.33
+# [5] ss_demo05 - Example artificial galaxy cluster
+  37.91   46.59   20.55   5999.2   -15.16  79  3.98 0.314  64.7   433.21  3.06
+# [6] ss_demo06 - Example artificial galaxy cluster
+  62.36   39.82   20.54   6108.9    -6.06  79  4.09 0.052  75.4   283.43  4.56
+# [7] ss_demo07 - Example artificial galaxy cluster
+  55.94   39.68   20.39   7012.2    -5.26  78  3.96 0.037  48.6   435.88  3.60
+# [8] ss_demo08 - Example artificial galaxy cluster
+  51.14   41.34   20.36   7159.2   -17.86  78  4.40 0.120  26.6   389.83  3.66
+# [9] ss_demo09 - Example artificial galaxy cluster
+  44.62   40.71   20.66   5445.6    -5.26  80  3.88 0.134 -48.0   366.77  3.53
+# [10] ss_demo10 - Example artificial galaxy cluster
+  38.09   40.69   20.60   5759.9    -3.92  78  3.76 0.115 -14.9   359.87  3.73
+# [11] ss_demo11 - Example artificial galaxy cluster
+  62.91   34.36   20.62   5646.8     1.21  78  3.70 0.159  86.3   371.63  3.61
+# [12] ss_demo12 - Example artificial galaxy cluster
+  56.78   33.65   20.50   6337.4     4.74  80  3.89 0.353  60.4   423.85  3.28
+# [13] ss_demo13 - Example artificial galaxy cluster
+  50.42   33.72   20.73   5104.7    13.96  81  3.35 0.252 -83.1   309.83  4.08
+# [14] ss_demo14 - Example artificial galaxy cluster
+  43.78   33.37   20.71   5185.7    -9.61  80  2.92 0.509  11.5   355.13  3.85
+# [15] ss_demo15 - Example artificial galaxy cluster
+  38.87   35.02   20.95   4181.9     3.05  77  2.53 0.388  50.1   413.95  2.97
+# [16] ss_demo16 - Example artificial galaxy cluster
+  63.77   28.22   20.45   6634.2    -8.94  79  4.28 0.182  -9.9   367.28  3.79
+# [17] ss_demo17 - Example artificial galaxy cluster
+  57.22   28.40   20.63   5622.1    -4.92  80  3.19 0.620  82.8   450.25  3.27
+# [18] ss_demo18 - Example artificial galaxy cluster
+  50.57   27.98   20.31   7538.0   -15.53  78  4.25 0.035   4.4   461.57  3.39
+# [19] ss_demo19 - Example artificial galaxy cluster
+  44.13   27.44   20.66   5469.8    -3.15  79  3.35 0.285 -79.0   358.91  3.80
+# [20] ss_demo20 - Example artificial galaxy cluster
+  37.78   27.41   20.46   6570.0    -3.22  80  4.25 0.122 -53.7   385.34  3.66
+# [21] ss_demo21 - Example artificial galaxy cluster
+  62.59   21.10   20.63   5598.3     1.60  79  3.38 0.454  62.7   365.72  3.77
+# [22] ss_demo22 - Example artificial galaxy cluster
+  57.55   22.98   20.67   5380.2    -5.57  79  3.64 0.207  57.4   281.00  4.47
+# [23] ss_demo23 - Example artificial galaxy cluster
+  51.31   22.19   20.52   6202.0    -3.33  79  3.63 0.181   8.0   367.96  3.95
+# [24] ss_demo24 - Example artificial galaxy cluster
+  45.01   21.72   20.25   7931.4   -33.02  77  4.12 0.161  87.2   527.28  2.96
+# [25] ss_demo25 - Example artificial galaxy cluster
+  37.91   21.61   20.49   6372.8    -5.36  79  3.75 0.149 -78.4   334.88  4.30
+.fi
+
+The second stage is to mark as many stars (or compact objects) as can
+be reliably measured in the middle image.  In this case only the
+star we measured before is reliable.
+
+.nf
+Entering imexamine on reference image, measure stars to
+align on beginning with the star in all images. 
+ 
+Log file demo.stars open
+z1=-238.5684 z2=231.3682
+#   COL    LINE    RMAG     FLUX      SKY   N  RMOM ELLIP    PA     PEAK  FWHM
+  50.43   33.64   20.73   5094.6    13.96  80  3.33 0.243 -87.8   319.94  3.96
+.fi
+
+As before we review the marked objects with an editor.  The file looks
+as shown below.
+
+.nf
+# [1] ss_demo13 - Example artificial galaxy cluster
+#   COL    LINE    RMAG     FLUX      SKY   N  RMOM ELLIP    PA     PEAK  FWHM
+  50.43   33.64   20.73   5094.6    13.96  80  3.33 0.243 -87.8   319.94  3.96
+.fi
+
+Now \fBimcentroid\fR is run to measure the same objects in all the frames
+when they overlap using the shifts from the object in common in all the frames.
+The measurements then produce the "shiftlist" described previously.  The
+shiftlist is reviewed using your editor.
+
+.nf
+ss_demo01 -14.04 -13.59 1.
+ss_demo02 -6.98 -13.39 1.
+ss_demo03 -0.57 -13.13 1.
+ss_demo04 6.06 -12.86 1.
+ss_demo05 12.45 -12.55 1.
+ss_demo06 -12.25 -6.43 1.
+ss_demo07 -5.88 -6.01 1.
+ss_demo08 -1.12 -7.58 1.
+ss_demo09 5.43 -7.19 1.
+ss_demo10 12.19 -6.95 1.
+ss_demo11 -12.97 -0.63 1.
+ss_demo12 -6.43 -0.07 1.
+ss_demo13 0. 0. 1.
+ss_demo14 6.43 0.33 1.
+ss_demo15 11.32 -1.09 1.
+ss_demo16 -13.55 5.43 1.
+ss_demo17 -6.89 5.32 1.
+ss_demo18 -0.31 6.02 1.
+ss_demo19 6.16 5.99 1.
+ss_demo20 12.65 6.22 1.
+ss_demo21 -12.32 12.72 1.
+ss_demo22 -7.52 11.01 1.
+ss_demo23 -0.89 11.44 1.
+ss_demo24 5.33 11.94 1.
+ss_demo25 12.4 11.9 1.
+.fi
+
+The shiftlist is used to register the images and combine them with
+exposure weighting.  An exposure map is also created at this point.
+These are the "first pass" mosaic and exposure map.  The images
+have the specified base name and the extension "_fp".  The exposure
+map has the additional prefix "exp".
+
+.nf
+-------Shifting and coadding images ----------
+Shifting ss_demo01
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo02
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo03
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo04
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo05
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo06
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo07
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo08
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo09
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo10
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo11
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo12
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo13
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo14
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo15
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo16
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo17
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo18
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo19
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo20
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo21
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo22
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo23
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo24
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo25
+  Total effective exposure time for this frame is 60.
+.fi
+
+The orientation of the final image is done next if needed.  In this example
+the images are left in their observed orientation.  The effective exposure
+time and other header parameters are updated.
+
+.nf
+Updating header information.
+demo_fp,exptime: 1. -> 1
+demo_fp updated
+demo_fp,i_title: shifted -> "Register mosaic sum: Example artificial galaxy cluster"
+demo_fp updated
+expdemo_fp,i_title: scaling -> "Exposure time map: Example artificial galaxy cluster"
+expdemo_fp updated
+demo_fp,SKYMED deleted
+demo_fp updated
+.fi
+
+This marks the end of the first pass.
+
+The "mask pass" begins by creating a mask of the object cores in the first
+pass mosaic, "deregistering" it to correspond to each individual image in
+the dither pattern, and removing any cosmic rays previously found in areas
+covered by the objects.
+
+.nf
+---------Making masks for unzapping object cores---------
+Recommended thresholding level for mask is 0.24144105
+z1=-0.5070791 z2=0.8764511
+.fi
+
+With the \fIchk\fR flag the exposure map and RMS balanced mosaic image is
+display with \fBimexamine\fR after the recommended threshold value is
+printed.  You can check the pixel levels with the display or using the
+\fBimexam\fR commands.  When done type 'q'.  You are asked for a cutoff
+value.  This is a value above the median background.  The reported
+threshold will differ from your input because of the median background
+level which will not be exactly zero.
+
+.nf
+Cutoff point for replacement: \fB.24\fR
+     Thresholding image at level 0.234075731
+.fi
+
+Now the first pass mosaic image and the mask are displayed and you can
+decide if you want to make a new mask with a different threshold.
+In the example with say "no".  The mask is then deregistered to each
+observation and any cosmic rays candidates within the objects in the mask are
+restored.
+
+.nf
+z1=-1.261593 z2=1.342784
+z1=0. z2=1.
+Keep checking mask? (yes): \fBno\fR
+------ Deregistering unzap mask subsections ------
+Making mask images for demo01
+Making mask images for demo02
+Making mask images for demo03
+Making mask images for demo04
+Making mask images for demo05
+Making mask images for demo06
+Making mask images for demo07
+Making mask images for demo08
+Making mask images for demo09
+Making mask images for demo10
+Making mask images for demo11
+Making mask images for demo12
+Making mask images for demo13
+Making mask images for demo14
+Making mask images for demo15
+Making mask images for demo16
+Making mask images for demo17
+Making mask images for demo18
+Making mask images for demo19
+Making mask images for demo20
+Making mask images for demo21
+Making mask images for demo22
+Making mask images for demo23
+Making mask images for demo24
+Making mask images for demo25
+------ Unzapping existing crmasks ------
+.fi
+
+A lower threshold mask of the objects is now made.  The same steps of
+display and threshold adjustment are given when \fIchk\fR is yes.  After
+being satisfied with the object mask it is also deregistered.  The object
+masks are used in a second pass of sky subtraction to avoid using pixels
+covered by faint objects as part of the sky.
+
+.nf
+---------Making masks for sky subtraction---------
+Recommended thresholding level for mask is 0.24144105
+z1=-0.5070791 z2=0.8764511
+Cutoff point for replacement: .18
+     Thresholding image at level 0.174075731
+z1=-1.261593 z2=1.342784
+z1=0. z2=1.
+Keep checking mask? (yes): \fBno\fR
+------ Deregistering skysub mask subsections ------
+Making mask images for demo01
+Making mask images for demo02
+Making mask images for demo03
+Making mask images for demo04
+Making mask images for demo05
+Making mask images for demo06
+Making mask images for demo07
+Making mask images for demo08
+Making mask images for demo09
+Making mask images for demo10
+Making mask images for demo11
+Making mask images for demo12
+Making mask images for demo13
+Making mask images for demo14
+Making mask images for demo15
+Making mask images for demo16
+Making mask images for demo17
+Making mask images for demo18
+Making mask images for demo19
+Making mask images for demo20
+Making mask images for demo21
+Making mask images for demo22
+Making mask images for demo23
+Making mask images for demo24
+Making mask images for demo25
+
+---------- Sky subtracting images -------------
+Calculating scaling for demo01
+Calculating scaling for demo02
+Calculating scaling for demo03
+Calculating scaling for demo04
+Calculating scaling for demo05
+Calculating scaling for demo06
+Calculating scaling for demo07
+Calculating scaling for demo08
+Calculating scaling for demo09
+Calculating scaling for demo10
+Calculating scaling for demo11
+Calculating scaling for demo12
+Calculating scaling for demo13
+Calculating scaling for demo14
+Calculating scaling for demo15
+Calculating scaling for demo16
+Calculating scaling for demo17
+Calculating scaling for demo18
+Calculating scaling for demo19
+Calculating scaling for demo20
+Calculating scaling for demo21
+Calculating scaling for demo22
+Calculating scaling for demo23
+Calculating scaling for demo24
+Calculating scaling for demo25
+Sky subtracting demo01
+Frame no. 1  sky frames:  start = 1   finish = 4   nreject = 1 
+There are 2  holes in output image ss_demo01
+Sky subtracting demo02
+Frame no. 2  sky frames:  start = 1   finish = 4   nreject = 1 
+There are 3  holes in output image ss_demo02
+Sky subtracting demo03
+Frame no. 3  sky frames:  start = 1   finish = 5   nreject = 1 
+Sky subtracting demo04
+Frame no. 4  sky frames:  start = 1   finish = 7   nreject = 1 
+Sky subtracting demo05
+Frame no. 5  sky frames:  start = 2   finish = 8   nreject = 1 
+Sky subtracting demo06
+Frame no. 6  sky frames:  start = 3   finish = 9   nreject = 1 
+Sky subtracting demo07
+Frame no. 7  sky frames:  start = 4   finish = 10   nreject = 1 
+Sky subtracting demo08
+Frame no. 8  sky frames:  start = 5   finish = 11   nreject = 1 
+Sky subtracting demo09
+Frame no. 9  sky frames:  start = 6   finish = 12   nreject = 1 
+Sky subtracting demo10
+Frame no. 10  sky frames:  start = 7   finish = 13   nreject = 1 
+Sky subtracting demo11
+Frame no. 11  sky frames:  start = 8   finish = 14   nreject = 1 
+Sky subtracting demo12
+Frame no. 12  sky frames:  start = 9   finish = 15   nreject = 1 
+Sky subtracting demo13
+Frame no. 13  sky frames:  start = 10   finish = 16   nreject = 1 
+Sky subtracting demo14
+Frame no. 14  sky frames:  start = 11   finish = 17   nreject = 1 
+Sky subtracting demo15
+Frame no. 15  sky frames:  start = 12   finish = 18   nreject = 1 
+Sky subtracting demo16
+Frame no. 16  sky frames:  start = 13   finish = 19   nreject = 1 
+Sky subtracting demo17
+Frame no. 17  sky frames:  start = 14   finish = 20   nreject = 1 
+Sky subtracting demo18
+Frame no. 18  sky frames:  start = 15   finish = 21   nreject = 1 
+Sky subtracting demo19
+Frame no. 19  sky frames:  start = 16   finish = 22   nreject = 1 
+Sky subtracting demo20
+Frame no. 20  sky frames:  start = 17   finish = 23   nreject = 1 
+Sky subtracting demo21
+Frame no. 21  sky frames:  start = 18   finish = 24   nreject = 1 
+Sky subtracting demo22
+Frame no. 22  sky frames:  start = 19   finish = 25   nreject = 1 
+Sky subtracting demo23
+Sky subtracting demo23
+Frame no. 23  sky frames:  start = 21   finish = 25   nreject = 1 
+There are 1  holes in output image ss_demo23
+Sky subtracting demo24
+Frame no. 24  sky frames:  start = 22   finish = 25   nreject = 1 
+There are 2  holes in output image ss_demo24
+Sky subtracting demo25
+Frame no. 25  sky frames:  start = 22   finish = 25   nreject = 1 
+There are 3  holes in output image ss_demo25
+.fi
+
+As before the bad pixels are interpolated away in the new sky subtracted
+images.  One possible difference is that the bad pixel mask may have
+additional bad pixels due to earlier detection as apparent cosmic
+ray events occuring repeatedly in the same pixel.
+
+.nf
+----------Correcting bad pixels -------------
+Fixing bad pixels in file ss_demo01
+demo.pl -> demo.imh
+Image: demo.imh (int) -> Image: demo.imh (short)
+Fixing bad pixels in file ss_demo02
+Fixing bad pixels in file ss_demo03
+Fixing bad pixels in file ss_demo04
+Fixing bad pixels in file ss_demo05
+Fixing bad pixels in file ss_demo06
+Fixing bad pixels in file ss_demo07
+Fixing bad pixels in file ss_demo08
+Fixing bad pixels in file ss_demo09
+Fixing bad pixels in file ss_demo10
+Fixing bad pixels in file ss_demo11
+Fixing bad pixels in file ss_demo12
+Fixing bad pixels in file ss_demo13
+Fixing bad pixels in file ss_demo14
+Fixing bad pixels in file ss_demo15
+Fixing bad pixels in file ss_demo16
+Fixing bad pixels in file ss_demo17
+Fixing bad pixels in file ss_demo18
+Fixing bad pixels in file ss_demo19
+Fixing bad pixels in file ss_demo20
+Fixing bad pixels in file ss_demo21
+Fixing bad pixels in file ss_demo22
+Fixing bad pixels in file ss_demo23
+Fixing bad pixels in file ss_demo24
+Fixing bad pixels in file ss_demo25
+.fi
+
+Another round of cosmic ray detection is done using the more sensitive
+object masks based on the first pass mosaic rather than generating a
+mask for each individual observation.  As before any repeated cosmic
+ray detections are flagged as likely bad pixels in the bad pixel file.
+
+.nf
+----------  Zapping cosmic rays  -------------
+No object masking will be used during zapping.
+Working on ss_demo01 ---ZAP!--> ss_demo01
+Working on ss_demo02 ---ZAP!--> ss_demo02
+Working on ss_demo03 ---ZAP!--> ss_demo03
+Working on ss_demo04 ---ZAP!--> ss_demo04
+Working on ss_demo05 ---ZAP!--> ss_demo05
+Working on ss_demo06 ---ZAP!--> ss_demo06
+Working on ss_demo07 ---ZAP!--> ss_demo07
+Working on ss_demo08 ---ZAP!--> ss_demo08
+Working on ss_demo09 ---ZAP!--> ss_demo09
+Working on ss_demo10 ---ZAP!--> ss_demo10
+Working on ss_demo11 ---ZAP!--> ss_demo11
+Working on ss_demo12 ---ZAP!--> ss_demo12
+Working on ss_demo13 ---ZAP!--> ss_demo13
+Working on ss_demo14 ---ZAP!--> ss_demo14
+Working on ss_demo15 ---ZAP!--> ss_demo15
+Working on ss_demo16 ---ZAP!--> ss_demo16
+Working on ss_demo17 ---ZAP!--> ss_demo17
+Working on ss_demo18 ---ZAP!--> ss_demo18
+Working on ss_demo19 ---ZAP!--> ss_demo19
+Working on ss_demo20 ---ZAP!--> ss_demo20
+Working on ss_demo21 ---ZAP!--> ss_demo21
+Working on ss_demo22 ---ZAP!--> ss_demo22
+Working on ss_demo23 ---ZAP!--> ss_demo23
+Working on ss_demo24 ---ZAP!--> ss_demo24
+Working on ss_demo25 ---ZAP!--> ss_demo25
+
+------- Updating bad pixel file ---------
+.fi
+
+The final step is to block replicate each image by four and shift and
+combine with quarter pixel accuracy.  This produces the final mosaic
+image with extension "_mp" and a final exposure map.
+
+.nf
+------Magshifting and coadding images ------
+Shifting ss_demo01
+Using prefixed cosmic ray mask file: crmask_ss_demo01.pl
+Using 'holes' mask file holes_ss_demo01.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo02
+Using prefixed cosmic ray mask file: crmask_ss_demo02.pl
+Using 'holes' mask file holes_ss_demo02.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo03
+Using prefixed cosmic ray mask file: crmask_ss_demo03.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo04
+Using prefixed cosmic ray mask file: crmask_ss_demo04.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo05
+Using prefixed cosmic ray mask file: crmask_ss_demo05.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo06
+Using prefixed cosmic ray mask file: crmask_ss_demo06.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo07
+Using prefixed cosmic ray mask file: crmask_ss_demo07.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo08
+Using prefixed cosmic ray mask file: crmask_ss_demo08.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo09
+Using prefixed cosmic ray mask file: crmask_ss_demo09.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo10
+Using prefixed cosmic ray mask file: crmask_ss_demo10.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo11
+Using prefixed cosmic ray mask file: crmask_ss_demo11.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo12
+Using prefixed cosmic ray mask file: crmask_ss_demo12.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo13
+Using prefixed cosmic ray mask file: crmask_ss_demo13.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo14
+Using prefixed cosmic ray mask file: crmask_ss_demo14.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo15
+Using prefixed cosmic ray mask file: crmask_ss_demo15.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo16
+Using prefixed cosmic ray mask file: crmask_ss_demo16.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo17
+Using prefixed cosmic ray mask file: crmask_ss_demo17.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo18
+Using prefixed cosmic ray mask file: crmask_ss_demo18.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo19
+Using prefixed cosmic ray mask file: crmask_ss_demo19.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo20
+Using prefixed cosmic ray mask file: crmask_ss_demo20.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo21
+Using prefixed cosmic ray mask file: crmask_ss_demo21.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo22
+Using prefixed cosmic ray mask file: crmask_ss_demo22.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo23
+Using prefixed cosmic ray mask file: crmask_ss_demo23.pl
+Using 'holes' mask file holes_ss_demo23.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo24
+Using prefixed cosmic ray mask file: crmask_ss_demo24.pl
+Using 'holes' mask file holes_ss_demo24.pl
+  Total effective exposure time for this frame is 60.
+Shifting ss_demo25
+Using prefixed cosmic ray mask file: crmask_ss_demo25.pl
+Using 'holes' mask file holes_ss_demo25.pl
+  Total effective exposure time for this frame is 60.
+Updating header information.
+demo_mp,exptime: 1. -> 1
+demo_mp updated
+demo_mp,i_title: shifted -> "Register mosaic sum: Example artificial galaxy cluster"
+demo_mp updated
+expdemo_mp,i_title: scaling -> "Exposure time map: Example artificial galaxy cluster"
+expdemo_mp updated
+demo_mp,BPM deleted
+demo_mp,HOLES deleted
+demo_mp,SKYMED deleted
+demo_mp updated
+.fi
+
+Now that we are done we can look at the results.  We will load the truth
+image, the first pass mosaic, and the mask pass mosaic into the image display.
+With XImtool this will allow blinking.  With SAOimage you would have to
+actively setup the psuedoblink option.  Note that the final sizes are
+different so things will not appear exactly registered.
+
+.nf
+di> \fBdisplay demo_truth 1 fill+\fR
+z1=4980.423 z2=5045.703
+di> \fBdisplay demo_fp 2 fill+\fR
+z1=-1.261593 z2=1.342784
+di> \fBdisplay demo_mp 3 fill+\fR
+z1=-0.08657328 z2=0.1074913
+.fi
+.endhelp

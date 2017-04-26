@@ -1,0 +1,190 @@
+.help xrshifts Sep00 xdimsum
+.ih
+NAME
+xrshifts -- compute total offsets for an ordered sequence of images using
+cross-correlation techniques
+.ih
+USAGE
+xrshifts inlist output shifts regions xlag ylag window cbox
+.ih
+PARAMETERS
+.ls inlist
+The list of input sky subtracted images. The input image list must be in order
+with each image offset from the previous one by approximately \fIxlag\fR
+pixels in x and \fIylag\fR pixels in y.
+.le
+.ls output
+The output total offsets file suitable for input to the xnregistar task.
+Output contains the input image name, the total x offset, the total y offset,
+and the default exposure time in columns 1 through 4 respectively. The total
+x and y offsets of image N are defined as the shifts x(N) - x(1) and
+y(N) - y(1) required to place image N in the same coordinate system as image 1.
+The default exposure time is 1 time unit.
+.le
+.ls shifts = ""
+The optional relative offsets file. Shifts contains the input image name,
+the relative x offset and the relative y offset in columns 1 through 3
+respectively. The relative offsets of image N are defined as the shifts
+x(N-1) - x(N) and y(N-1) - y(N) required to register image N to image N-1.
+.le
+.ls regions
+The input image region used to compute the cross-correlation function. Regions
+should be defined so as to exclude areas of obviously bad data. By default the
+entire image is used.
+.le
+.ls xlag, ylag
+The approximate relative offsets x(N) - x(N-1) and y(N) - y(N-1) between
+adjacent images in the input image list.
+.le
+.ls window
+The width of the cross-correlation function region to be computed and searched
+for peaks. The search window corresponds to shifts of - window / 2 <= shift <=
+window /2.  \fIWindow\fR is automatically rounded up to the next nearest odd
+number.
+.le
+.ls cbox
+The width of the box centered on the peak of the cross-correlation function
+used to compute the fractional pixel x and y center.
+.le
+.ls background = "none"
+The default background function to be subtracted from the input and reference
+image data in the correlation region before the cross-correlation function is
+computed. The options are:
+.ls none
+no background subtraction is done.
+.le
+.ls mean
+the mean of the reference and input image region is computed and subtracted
+from the image data.
+.le
+.ls median
+the median of the reference and input image region is computed and subtracted
+from the data.
+.le
+.ls plane
+a plane is fit to the reference and input image region and subtracted
+from the data.
+.le
+
+By default the cross-correlation function is computed in a manner which removes
+the mean intensity in the reference and input image regions from the data. For
+many data sets this "correction" is sufficient to remove first order background
+level effects from the computed cross-correlation function and  no additional
+background subtraction is required.
+.le
+.ls correlation = "discrete"
+The algorithm used to compute the cross-correlation function. The options
+are:
+.ls discrete
+The cross-correlation function is calculated by computing the discrete
+convolution of the reference and imput image regions over the x and y
+window of interest.  This technique is most efficient method for small
+cross-correlation function x and y search windows.
+.le
+.ls fourier
+The cross-correlation function is calculated by computing the convolution
+of the reference and input image regions  using Fourier techniques.
+This technique is the most efficient method for computing  the
+cross-correlation function for small x and y search windows.
+.le
+.le
+.function = "centroid"
+The algorithm used to compute the x and y position of the cross-correlation
+function peak.  The options are:
+.ls none
+the position of the cross-correlation function peak is set to
+x and y position of the maximum pixel.
+.le
+.ls centroid
+the position of the cross-correlation function peak is calculated
+by computing the intensity-weighted mean of the marginal profiles of
+the cross-correlation function in x and y.
+.le
+.ls sawtooth
+the position of the cross-correlation function peak is calculated
+by  convolving 1D slices in x and y through the cross-correlation function
+with a 1D sawtooth function and using the point at which the peak is
+bisected to determine the x and y position of the cross-correlation
+peak.
+.le
+.ls parabolic
+a 1D parabola is fit to 1D slices in x and y through the cross-correlation
+function and the fitted coefficients are used to compute the peak of
+the cross-correlation function.
+.le
+.ls mark
+mark the peak of the cross-correlation function with the graphics cursor.
+This option will only work if \fIinteractive\fR = "yes".
+.le
+.le
+.ls tolerance = 5.0
+The maximum permitted difference between the computed relative offsets
+and the initial values of \fIxlag\R and \fIylag\fR. 
+.le
+.ls interactive = no
+Compute the cross-correlation function and relative offsets interactively ?
+.le
+
+.ih
+DESCRIPTION
+
+XRSHIFTS computes total offsets for the images in the input image list
+\fIinlist\fR and writes the results in a form suitable for input to the
+xnregistar task to \fIoutput\fR. If the \fIshifts\fR parameter is defined
+the relative offsets for adjacent images are written to the file \fIshifts\fR.
+
+XRSHIFTS requires the input image list to be ordered and also requires that
+the relative offsets between adjacent images are approximately equal
+to \fIxlag\fR and \fIylag\fR pixels.
+
+XRSHIFTS computes the relative offsets between adjacent images by computing
+the peak of the cross-correlation function for each pair of adjacent images
+using the XREGISTER task.
+
+XREGISTER computes the cross-correlation function of pairs of adjacent images
+using data in \fIregions\fR and a correlation window of width \fIwindow\fR
+pixels. The maximum detectable shifts is +/- window / 2 pixels.  Window should
+be set large enough to detect the likely range of shifts. If \fIbackground\fR
+is set then the background is estimated and subtracted from the input image
+data before the cross-correlation function is computed. If \fIcorrelation\fR
+is "fourier" the cross-correlation function is computed using fourier
+transform techniques, otherwise it is computed directly. The position of the
+peak of the cross-correlation function is computed using \fIcbox\fR pixels
+centered around the correlation peak and the algorithm specified by
+\fIfunction\fR.
+
+If adjacent frames contain no objects in common or the computed shift is
+greater than \fItolerance\fR the relative offsets are set to \fIxlag\fR and
+\fIylag\fR. Total offsets are computed by summing the relative offsets.
+
+.ih
+EXAMPLES
+
+1. Compute the total offsets for a series of 250 ONIS sky subtracted images
+which are offset by approximately 50 pixels in x and 0.5 pixels in y. Output
+both the total and relative offsets. 
+
+.nf
+    cl> type simlist
+    ss_kk07_001
+    ss_kk07_002
+    ss_kk07_003
+    ...
+    ...
+    ss_kk07_249
+    ss_kk07_250
+
+    cl> xrshifts @simlist offsets shifts [*,*] 50.0 0.5 31 9 tolerance=2.5
+
+    cl> xnregistar offsets "" "" "" kk07.mosaic kk07.corners
+.fi
+
+.ih
+TIME REQUIREMENTS
+
+.ih
+BUGS
+.ih
+SEE ALSO
+xmshifts,xfshifts,xdshifts,xregister
+.endhelp

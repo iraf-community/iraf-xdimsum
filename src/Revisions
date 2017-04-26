@@ -1,0 +1,80 @@
+.help revisions Dec00 xdimsum
+
+xdimsum$src/xdshifts.cl
+    Added a hidden parameter to control the number of frames to use with
+    IMEXAM.  The default value works with both DS9 and XIMTOOL.  A larger
+    number could then be used with XIMTOOL.  (1/2/24, Valdes)
+
+==============
+August 6, 2002
+==============
+
+xdimsum$src/xnregistar.cl
+    IMCOMBINE normalizes the input scales to the first image rather than
+    using them in an absolute sense.  A correction needed to be applied
+    to produce output images per unit exposure time and exposure masks in unit
+    exposure times.  (8/6/02, Valdes) 
+
+xdimsum$src/xnregistar.cl
+xdimsum$src/xnregistar.hlp
+xdimsum$src/xfirstpass.cl
+xdimsum$src/xmaskpass.cl
+xdimsum$src/xmaskpass.hlp
+xdimsum$src/xmosaic.cl
+xdimsum$src/xmosaic.hlp
+    Added the omasks and nprev_omask to the xregistar task and add support
+    for previous object masking. Made the necessary modficiations
+    to xfirstpass, xmaskpass, and xmosaic and their help pages. 
+    (Davis, 26/01/01)
+
+xdimsum$src/maskdereg.cl
+xdimsum$src/maskpass.cl
+xdimsum$src/maskdereg.hlp
+    Removed the nprev_omask parameter from the maskdereg task and the
+    maskdereg calls in xmaskpass. (Davis, 25/01/01)
+
+xdimsum$src/xmaskpass.cl
+xdimsum$src/xmosaic.cl
+    Added the mask region growing parameter ngrow to the xmaskpass and xmosaic
+    scripts.  Rearranged the xmosaic parameters. (Davis 25/01/01)
+
+xdimsum$src/xmshifts.cl
+    Fixed an error in the code which computes the average shifts, that
+    was introduced when xdimsum was recently modified. (Davis 24/01/01)
+
+xdimsum$src/xmosaic.cl
+    Added switch checks to the xfirstpass and xmaskpass calls so that the
+    routines are not called if no switchs are set.  (Davis 23/01/01)
+
+xdimsum$src/xmaskpass.cl
+    Added checks for the existence of the input combined  image, input
+    exposure map, and input sections file. (Davis 23/01/01)
+
+xdimsum$src/xfirstpass.cl
+xdimsum$src/xmaskpass.cl
+xdimsum$src/xmosaic.cl
+xdimsum$doc/xfirstpass.hlp
+xdimsum$doc/xmaskpass.hlp
+xdimsum$doc/xmosaic.hlp
+    Added the parameter nrepeats to the xfirstpass, xmaskpass, and xmosaic
+    script tasks. If the same pixel is bad in nrepeats or more images then
+    it is set to bad in the bad pixel mask. (Davis 01/17/01)
+
+xdimsum$src/makemask.cl
+xdimsum$src/xzap.cl
+xdimsum$src/makemask.hlp
+    Added the parameter negthresh to the makemask task. If negthresh is
+    yes both positive and negative masking threshold are used otherwise
+    only positive masking threshold are used. Negthresh was set to no in
+    the xzap makemask call. (Davis 01/17/01)
+
+xdimsum$src/xfirstpass.cl
+xdimsum$src/xmaskpass.cl
+xdimsum$src/xmosaic.cl
+xdimsum$src/xfirstpass.hlp
+xdimsum$src/xmaskpass.hlp
+xdimsum$src/xmosaic.hlp
+    Added the parameter negthresh to the xfirstpass, xmaskpass, and xmosaic
+    tasks. (Davis 01/17/01)
+
+.endhelp

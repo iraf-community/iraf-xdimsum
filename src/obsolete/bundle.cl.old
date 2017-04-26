@@ -1,0 +1,86 @@
+procedure bundle(image_list,nbundle)
+
+# Procedure to coaverage sets of individual exposures taken at a given
+# sky position. Takes as input a list of files (which must be in the proper
+# sequence for grouping, i.e. presumably ther order in which they were taken)
+# and the number of files to average to form each "bundle". Output files
+# are named after the first file of the bundle with the an added suffix 
+# 'bn', where n is the number of files in the bundle.
+# 
+# 22 Sept 90. Magnificently written by Mark Dickinson, 
+# nouveau IRAF script demi-pundit extraordinaire
+#
+# Edited 10 May 91 to add test for nbundle=2 then average in first pass
+# by Peter Eisenhardt
+#
+# Upgraded 8 July 92 to work with IRAF version 2.10 by John Ward
+# Further revisions 13 July to support v2.10 combine
+# Changed 21 Jul 93 from combine --> imcombine
+#
+# Minor changes 4 Aug 1993 -- MD
+
+string	image_list {prompt="List of images in sequence for bundling"}
+int	nbundle    {min=1, prompt="Number of images to bundle at a time"}
+string	*imglist
+
+begin
+
+	string 	img, outimg, img1, tlist
+	int	i, ibundle, navg
+
+# Get query parameters.
+
+	imglist = image_list
+	navg = nbundle
+
+	ibundle=0
+
+	tlist = mktemp("tmp$bundle")
+	while (fscan(imglist,img) != EOF) {
+		files(img, >> tlist)
+		ibundle+=1
+		if (ibundle==1) {
+			fileroot (img,validim+)
+			img1 = fileroot.root
+		}
+		else if (ibundle==navg) {
+		   outimg  = img1 // "b" // navg
+		   print ("Making bundled frame ",outimg)
+		   if (ibundle >= 3) {
+			imcombine ("@"//tlist,outimg,combine="average",reject="none",
+			  proj-,outtype="real",off="none",maskty="none",scal="none",zero="none",
+			  weight="none",lthr=INDEF,hthr=INDEF,nkeep=1,mclip+,lsig=3.,hsig=3.,
+			  sigscale=0.,grow=0,plfile="",sigma="")
+			}
+		   else
+			imcombine ("@"//tlist,outimg,combine="average",reject="none",
+			  proj-,outtype="real",off="none",maskty="none",scal="none",zero="none",
+			  weight="none",lthr=INDEF,hthr=INDEF,mclip+,lsig=3.,hsig=3.,
+			  sigscale=0.,grow=0,plfile="",sigma="")
+		   delete (tlist,ver-)
+		   ibundle = 0
+		}
+	}
+# This extra pass is to handle the last few files in the list,
+# and is only triggered when an odd number (i.e. not=nbundle) is left.
+	if (ibundle!=0) {
+		outimg  = img1 // "b" // ibundle
+		print ("Making bundled frame ",outimg)
+		if (ibundle >= 3)
+			imcombine ("@"//tlist,outimg,combine="average",reject="none",
+			  proj-,outtype="real",off="none",maskty="none",scal="none",zero="none",
+			  weight="none",lthr=INDEF,hthr=INDEF,nkeep=1,mclip+,lsig=3.,hsig=3.,
+			  sigscale=0.,grow=0,plfile="",sigma="")
+		   else
+			imcombine ("@"//tlist,outimg,combine="average",reject="none",
+			  proj-,outtype="real",off="none",maskty="none",scal="none",zero="none",
+			  weight="none",lthr=INDEF,hthr=INDEF,mclip+,lsig=3.,hsig=3.,
+			  sigscale=0.,grow=0,plfile="",sigma="")
+		delete (tlist,ver-)
+		print ("Bundle ",outimg," averages only ",ibundle,
+			" frames.")
+	}
+
+	imglist = ""
+
+end

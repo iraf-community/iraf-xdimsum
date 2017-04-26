@@ -1,0 +1,13 @@
+# Make the XIMSTAT / XMIMSTAT tasks
+
+$checkout libpkg.a ../..
+$update libpkg.a
+$checkin libpkg.a ../..
+$exit
+
+libpkg.a:
+	t_mimstat.x	<mach.h> <imhdr.h> <imset.h> <pmset.h> "mimstat.h"
+	t_imstat.x	<mach.h> <imhdr.h> "mimstat.h"
+	mimstat.x	<mach.h> "mimstat.h"
+	mstcache.x	<imhdr.h> <imset.h>
+	;

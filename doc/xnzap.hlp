@@ -1,0 +1,157 @@
+.help xnzap Sep00 xdimsum
+.ih
+NAME
+xnzap -- remove cosmic rays using a moving average filter
+.ih
+USAGE
+xnzap inlist omasks outlist crmasks
+.ih
+PARAMETERS
+.ls inlist
+The list of input sky subtracted images to be cosmic ray corrected.
+.le
+.ls omasks
+The list of input object masks used to unzap cosmic rays detected in object
+regions or the input image keyword containing the name of the object mask,
+normally "CROBJMAS". Object masks contain 0's in object regions and 1's
+elsewhere. Note that this is the inverse of the usual definition of
+an XDIMSUM object mask.
+.le
+.ls outlist
+The list of output cosmic ray corrected images. The output image list can
+be the same as the input image list.
+.le
+.ls crmasks = ".crm"
+The name of the output cosmic ray masks or the string appended to the
+output image name to create the output cosmic ray mask name. Cosmic ray masks
+contain 1's in cosmic ray regions and 0's elsewhere. The name of the output
+cosmic ray mask is stored in the input and output image header keyword CRMASK.
+.le
+.ls zboxsz = 5
+The size in pixels of the moving average filter. The central pixel
+plus \fInrejzap\fR pixels are rejected from the average.
+.le
+.ls skyfiltsize = 15
+The sky filter size in pixels. For each point the median of the pixels in
+an annulus of width (\fIskyfiltsize\fR - \fIzboxsz\fR) / 2 pixels is used
+to estimate the local background.
+.le
+.ls sigfiltsize = 25
+Size of box used for local background sigma estimates. The sigma filter
+is not a moving filter. Sigmas are estimated using percentile points of
+of the pixels in the box.
+.le
+.ls nsigzap = 5.0
+The cosmic ray detection threshold in units of sky sigma.
+.le
+.ls nsigneg = 0.0
+The negative deviant pixel detection threshold in units of sky sigma.
+If nsigneg <= 0.0 negative feature detection is not enabled.
+.le
+.ls nrings = 0
+The cosmic ray growing region half-width in pixels.
+.le
+.ls nsigobj = 2.0
+The object detection threshold in units of sky sigma. If nsigobj <= 0.0
+only cosmic ray detection is performed.
+.le
+.ls ngrowobj = 0
+The number of pixels to flag as a buffer around objects detected in the
+object detection step.
+.le
+.ls del_crmask = no
+Delete the cosmic ray mask at task termination ? By default the cosmic
+ray masks are stored and used in later processing steps.
+.le
+.ls verbose = no
+Print messages about actions taken by the task ?
+.le
+
+.ih
+DESCRIPTION
+XNZAP detects detects and removes cosmics rays from the input images
+\fIinlist\fR and writes the corrected images to \fIoutlist\fR. The output
+image list may be the same as the input image list. If input object
+masks \fIomasks\fR are defined then only cosmic rays in sky regions are
+detected and removed. These object mask consist of 0's and 1's with 0's
+defining the object regions in contrast to the usual XDIMSUM convention.
+The output cosmic rays mask are written to \fIcrmasks\fR. Cosmic
+ray masks consist of 1's and 0's with 1's defining the detected cosmic rays.
+
+At each pixel position XNZAP computes a running average filter of size
+\fIzboxsz\fR excluding the central pixel and the \fInrejzap\fR highest
+pixels from the average, and a running median in an annulus (\fIskyfiltsize\fR
+- \fIzboxsz\fR) / 2 pixels wide. The local sky sigmas are estimated by dividing
+the image into square blocks which are \fIsigfiltsize\fR pixels wide and
+estimating the percentile points of pixels in the box.
+
+A pixel is considered part of an object if the difference between the average
+value and the median background > \fInsigobj\fR times the background sigma.
+If nsigobj <= 0 then no object detection is performed. If the pixel is NOT
+considered to be part of an object and if the difference between the pixel
+value and the average value exceeds \fInsigzap\fR times the background sigma
+it is identified as a cosmic ray.  If \fInsigneg\fR > 0.0 then pixels more
+than nsigneg times the background sigma are also considered to be cosmic
+rays and are added to the cosmic ray mask.
+
+If \fInrings\fR > 0 then XNZAP grows the detected cosmic rays to include
+pixels within a radius of nrings pixels of the detected cosmic ray.
+If \fInobjgrow\fR is > 0 then the detected object regions are grown to
+include pixels with a radius of nobjgrow pixels of the target object.
+The output cosmic ray mask is not affected by the region growing parameters
+however.
+
+XNZAP is a new cosmic ray detection program which can be used as an alternative
+to XZAP. It uses the CRAVERAGE task to detect and remove cosmic rays. Normally
+CRAVERAGE is part of the addon CRUTIL package but a private copy has been
+installed in XDIMSUM. Users can find out more about CRAVERAGE by consulting
+the CRAVERAGE help page.
+
+If \fIdel_crmask\fR = yes the output cosmic ray mask is deleted on task
+termination
+
+If \fIverbose\fR = yes then XNZAP prints messages on the terminal about
+the progress of the task.
+
+.ih
+EXAMPLES
+
+1. Detect cosmic rays in the demo sky subtracted images.
+
+.nf
+    cl> type sdemo.list
+    demo01.sub.imh
+    demo02.sub.imh
+    ...
+    demo25.sub.imh
+
+    cl> xnzap @sdemo.list "" @sdemo.list ".crm"
+.fi
+
+2. Repeat example 1 but specify an output cosmic ray mask list.
+
+.nf
+    cl> xnzap @sdemo.list "" @sdemo.list @crmlist
+.fi
+
+3. Repeat example 1 but specify an input inverse object core mask using
+the keyword "CROBJMAS".
+
+.nf
+    cl> xnzap @sdemo.list "CROBJMAS" @sdemo.list ".crm"
+.fi
+
+4. Repeat example 2 but specify the input inverse object core mask list.
+
+.nf
+    cl> xnzap @sdemo.list @ocrmlist @sdemo.list @crmlist
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xzap, craverage
+.endhelp

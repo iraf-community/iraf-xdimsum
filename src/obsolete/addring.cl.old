@@ -1,0 +1,31 @@
+procedure addring(mask)
+
+# Slight change of display levels 2/28/93 MD
+# Script addring.cl adds a ring around all objects in a mask image.
+# 11 July 1992 by John S. Ward
+# Mod. 19 May 1993 by Mark Dickinson to make it compatable 
+#  with .pl masks, to add mask as query parameter, to make number
+#  of added rings a variable, and to eliminate autodisplay.
+#
+# NOTE:  This routine assumes that "objects" are masked with 1s
+# while blank sky is represented by 0s.
+
+string	mask	{prompt="Name of mask image"}
+int	ngrow	{1,min=0,prompt="Number of pixel rings to grow around mask"}
+
+begin
+
+	string	mi		# equals maskim
+	int	nbox
+	int	nbox2 
+
+	mi = mask
+
+	nbox = 2 * ngrow + 1
+	nbox2 = nbox * nbox
+
+	imarith (mi,"*",nbox2,mi,ver-)
+	boxcar (mi,mi,nbox,nbox)
+	imreplace (mi,1,lower=1,upper=INDEF)
+
+end

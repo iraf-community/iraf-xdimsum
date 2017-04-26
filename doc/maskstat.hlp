@@ -1,0 +1,116 @@
+.help maskstat Sep00 xdimsum
+.ih
+NAME
+maskstat -- compute image statistics through a mask 
+.ih
+USAGE
+maskstat inlist masks goodvalue
+.ih
+PARAMETERS
+.ls inlist
+The list of images for which the statistics are to be computed. 
+.le
+.ls masks
+The good data masks associated with inlist. Good data masks are assumed
+to consist entirely of 1's and 0's and to be the same size as the images
+in inlist. The number of masks must be one or equal to the number of input
+images.
+.le
+.ls goodvalue
+The input mask good data value which must be 1 or 0.
+.le
+.ls statsec = ""
+The input image section used to compute the statistics. If statsec is
+defined the input image and input mask  names must not include an image
+section.
+.le
+.ls lower = INDEF
+The initial lower bad data limit.
+.le
+.ls upper = INDEF
+The initial upper bad data limit.
+.le
+.ls iterstat = no
+Use the iterstat task to compute the image statistics rather than imstatistics.
+.le
+.ls nsigrej = 3.0
+The k-sigma bad data rejection criterion.
+.le
+.ls maxiter = 20
+The maximum number of bad data rejection cycles.
+.le
+.ls show = yes
+Print the results for the final iteration ?
+.le
+.ls verbose = yes
+Print the results for each iteration ?
+.le
+.ls mean
+The returned image mean estimate.
+.le
+.ls msigma
+The returned image standard deviation estimate.
+.le
+.ls median
+The returned image median estimate.
+.le
+.ls mode
+The returned image mode estimate.
+.le
+.ih
+DESCRIPTION
+
+The mean, standard deviation, median, and mode are estimated for each masked
+input image in \fIinlist\fR and stored in the output parameters \fImean\fR,
+\fImsigma\fR, \fImedian\fR, and \fImode\fR. \fIMasks\fR defines either a single
+mask to be applied to every input image or an individual mask for every input
+image. If \fIiterstat\fR = yes then the image statistics are computed using
+iterative rejection, otherwise no iterative rejection is performed. Results
+for each iteration are printed on the terminal if \fIverbose\fR = yes, and
+for the final result only if \fIshow\fR = yes.
+
+If \fIstatsec\fR is defined then the statistics are computed inside an
+image section. In that case the input image and mask names must not include an
+image section.  Initial values for the image statistics are computed after
+applying the mask and rejecting data outside the limits defined by the
+\fIlower\fR and \fIupper\fR parameters.  New bad data limits are computed using
+the mean and sigma computed by the previous iteration and value of the
+\fInsigrej\fR parameter. MASKSTAT terminates if the number of iterations >=
+\fImaxiter\fR or if no new bad pixels are detected.
+
+MASKSTAT is a script task which calls ITERSTAT if \fIiterstat\fR = yes or
+IMSTATISTICS if \fIiterstat\fR = no. More information about the ITERSTAT and
+IMSTATISTICS algorithms can be found in the help pages for the ITERSTAT
+and IMSTATISTICS tasks.
+
+.ih
+EXAMPLES
+
+1. Compute the statistics for an image through a mask where the good pixels
+are defined by mask values of 1.
+
+.nf
+cl> maskstat demo01 demo.pl 1
+.fi
+
+2. Repeat the previous example but do the rejection iteratively.
+
+.nf
+cl> maskstat demo01 demo.pl 1 iterstat+
+.fi
+
+3. Repeat the previous example but operate on a list of images and print
+only the final result.
+
+.nf
+cl> maskstat @demo.list demo.pl 1 iterstat+ verbose-
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+imstatistics, iterstat
+.endhelp
