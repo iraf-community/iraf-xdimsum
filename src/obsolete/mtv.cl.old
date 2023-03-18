@@ -1,0 +1,13 @@
+procedure mtv(image, frame)
+
+# Display a mask image with display range forced to
+# z1=0, z2=1.   A convenience...
+
+string	image	{prompt="Mask image to be displayed"}
+int	frame	{min=1,max=4,prompt="Frame buffer for image display"}
+
+begin
+
+	display (image,frame,zsc-,zra-,z1=0,z2=1)
+
+end

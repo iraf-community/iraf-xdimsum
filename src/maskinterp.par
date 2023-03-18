@@ -1,0 +1,3 @@
+image,s,a,,,,Image to correct
+bpimage,s,a,,,,Bad pixel mask file
+badvalue,i,a,0,,,Value for bad pixels

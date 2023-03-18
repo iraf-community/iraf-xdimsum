@@ -1,0 +1,125 @@
+procedure initpass(imlist,outim)
+
+# Various changes up to 7/20/93 to make structure more generic, including
+# making sky subtracted file prefix a parameter.  -- MD
+# Modified 2/27/93 to delete masks from xzap after they are imsummed. -- MD
+# Script combining xslm, fixpix, xzap, and register for
+# for the first pass of reduction of HZRG's.  Firstpass must be given
+# the name of the image list, the number of images to use
+# in the sky frame, the path of
+# the bad pixel list, the name of the final shifted image, and all
+# relevent parameters for calling register.
+#
+# 11 July 1992 by John S. Ward
+
+string	imlist	{prompt="List of images"}
+string	outim	{prompt="Name for final shifted image"}
+bool	xslm	{yes,prompt="Do xslm stage?"}
+bool	fixpix	{yes,prompt="Do fixpix stage?"}
+bool	xzap	{yes,prompt="Do xzap stage?"}
+bool	badpixupdate	{yes,prompt="Do bad pixel file update?"}
+bool	register	{yes,prompt="Do register stage?"}
+string  shiftlist {"Shiftlist",prompt="Shift list file (names, a shifts, b shifts, weights)"}
+int	nmed	{4,min=1,prompt="Number of images to use in sky frame"}
+string	bpimage	{"",prompt="Bad pixel mask image"}
+string	prefix	{"s_",prompt="Prefix for sky subtracted images"}
+real	secper	{60.,prompt="Seconds per unit exposure time"}
+int	ncoavg	{1,min=1,prompt="Number of internal coaverages per frame"}
+int	rjct	{1,min=0,prompt="Number of pixels for xslm minmax reject"}
+int     nskymin {0,min=0,prompt="Minimum number of frames to use for sky"}
+bool	forcescale	{yes,prompt="Force recalculation of image medians in sky scaling?"}
+bool	pixin	{yes,prompt="Are input coords measured pixels of ref object?"}
+real	scale_x	{1.,prompt="x pixels per ab coord unit"}
+real	scale_y	{1.,prompt="y pixels per ab coord unit"}
+real	ang_ax	{0.,prompt="Angle in degrees from a CCW to x"}
+bool	senseab	{yes,prompt="Is a through b counterclockwise?"}
+real	ang_y2N	{90.,prompt="Angle in degrees from y to N dir N through E"}
+bool	rotation	{no,prompt="Is N through E counterclockwise?"}
+bool	answer	{yes,prompt="OK to delete old sky subtracted files?",mode="q"}
+struct	*ilist
+
+begin
+
+	string	ext		# default extension
+	string 	lst		# equals imlist
+	string	oi		# equals outim
+
+	string	img		# image filename
+	string	tlist		# temporary output file list
+	string	simgimh
+	int	nprefix
+	int	ifile
+
+# Get query parameters.
+
+	lst	= imlist
+	oi	= outim
+	
+# Create temporary list of filenames for sky subtracted output files.
+# Determine filename of first sky subtracted file and save in variable 
+# imgimh for later use.
+
+	fileroot ("")
+	ext = fileroot.defextn
+	tlist = mktemp("tmp$initpass")
+	ilist = lst
+	ifile = 0
+	while (fscan(ilist,img) != EOF) {
+		ifile += 1
+		if (ifile == 1) {
+			fileroot (img,validim+)
+			if (fileroot.extension == "") 
+				simgimh = prefix // fileroot.root // ext
+			   else
+				simgimh = prefix // img
+		}
+		print (prefix//img,>>tlist)
+	}
+
+# Call xslm, fixpix, xzap, badpixupdate, and register.
+
+	if (xslm) {
+	  print("----------Sky subtracting images with xslm.-------------")
+	  if (access(simgimh)) {
+		if (answer) imdel("@"//tlist,ver-)
+	  }
+	  xslm(lst,nmed,mask-,prefix=prefix,nreject=rjct,nskymin=nskymin,
+		premask-,force=forcescale)
+	  print("")
+	}
+
+	if (fixpix) {
+	  print("----------Correcting bad pixels with maskfix.-------------")
+	  maskfix ("@"//tlist,bpimage,0)
+	  print("")
+	}
+
+	if (xzap) {
+	  print("----------  Zapping cosmic rays using xzap.  -------------")
+	  imdel ("_cr*"//ext//",_mask*"//ext//",_fmed*"//ext,ver-)
+	  xzap("@"//tlist,"@"//tlist,deletemask=no,
+		cleanpl=yes,cleanimh=yes,verbose=no)
+	  print("")
+	}
+
+	if (badpixupdate) {
+	  print("------- Updating bad pixel file with badpixupdate. -------")
+	  badpixupdate (3,bpimage)
+	  print("")
+	}
+
+	if (register) {
+	  print("-------Shifting and coadding images with register.--------")
+	  imdelete ("bigshift*"//ext//",bigscale*"//ext,ver-)
+	  nprefix = strlen(prefix)
+	  register(shiftlist,oi,bpimage,xscale=scale_x,yscale=scale_y,
+		axangle=ang_ax,absense=senseab,pixin=pixin,angle=ang_y2N,
+		rotation=rotation,secpexp=secper,ncoavg=ncoavg,mag=1,
+		nprefix=nprefix)
+	  print("")
+	}
+
+	delete (tlist,ver-)
+	ilist = ""
+
+end

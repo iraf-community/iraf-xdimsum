@@ -1,0 +1,234 @@
+.help xnregistar Sep00 xdimsum
+.ih
+NAME
+xnregistar -- combine a list of sky subtracted images using precomputed offsets 
+              exposure times and masks
+.ih
+USAGE
+xnregistar inlist rmasks output expmap sections
+.ih
+PARAMETERS
+.ls inlist
+The input shiftlist normally produced by the xmshifts, xfshifts, xrshifts, or
+xdshifts tasks. Inlist contains the name of the input sky subtracted image,
+the x offset, the y offset, and the exposure time in columns 1 through 4.
+.le
+.ls rmasks 
+The list of input rejection masks normally produced by the xmskcombine
+task. The rjection mask is assumed to consist of 1's and 0's where 1's
+define the good values. Rrmasks may define a list masks which has the same
+length as inlist, or an image keyword containing the name of the rejection
+mask. The default keyword name  written by xmskcombine  is "REJMASK".
+If no rejection mask is defined a virtual cosmic ray mask consisting
+entirely of 1's is defined.
+.le
+.ls output
+The name of the output combined image.
+.le
+.ls expmap 
+The name of the output exposure map image. 
+.le
+.ls sections
+The optional output sections or corners file suitable for input to the
+maskdereg task. If defined sections contains the name of the input images
+in \fIsinlist\fR if it is defined or \fIinlist\fR, the x and y coordinates of
+the lower left corner of the input image in the combined output image, and the
+x and y coordinates of the upper right corner of the input image in the output
+image in columns 1 through 5 respectively.
+.le
+.ls sinlist = ""
+The list of image names that will be written to the sections file.
+If sinlist is undefined then the input image names in \fIinlist\fR are used.
+.le
+.ls nprev_omask = 0
+The number of previous object masks to combine to create an objects mask.
+By default no object masks are defined. If nprev_omask is 1 then the
+object mask of the previous image is used to mask the current image,
+if \fInprev_omask\fR = 2 then the 2 previous object masks are used, etc.
+.le
+.ls blkrep = yes
+Use block replication to magnify the image if \fImag\fR > 1 rather than
+bilinear interpolation ?
+.le
+.ls mag = 1
+The default magnification factor. If mag = 1 the scale of the output image
+is the same as the scale of the input images. If mag > 1 then the input
+images are block replicated by a factor of mag before being combined
+to create the output images.
+.le
+.ls fractional = no
+If fractional is yes then the input images are shifted by the fractional
+part of the total offset in inlist before being combined. If fractional
+is no then the fractional part of the pixel shift is lost.
+.le
+.ls pixin = yes
+If pixin is yes the input offsets called a and b are assumed to be defined in
+the reference image pixel coordinate system x and y and ab_sense, xscale,
+yscale, and a2x_angle default to yes, -1.0, -1.0, and 0.0 respectively.
+.le
+.ls ab_sense = yes
+Is the rotation of the a to b axis counter-clockwise ? The x and b
+axes are the axes along which the input offsets are measured. Ab_sense
+defaults to yes if pixin is yes.
+.le
+.ls xscale = 1.0, yscale = 1.0
+The number of pixel coordinates x and y per input coordinates a and b.
+For example if the input offsets are measured in arcseconds and the pixel
+scale is 0.25 arcseconds per pixel then xscale and yscale should be set to 4.0.
+Xscale and yscale default to -1.0 and -1.0 if pixin is yes.
+.le
+.ls a2x_angle = 0
+The angle in degrees of the a offset axis measured counter-clockwise to the
+image x axis. A2x_angle defaults to 0.0 is pixin is yes.
+.le
+.ls ncoavg = 1
+The number of co-averages per input image. The total exposure time for
+an image is ncoavg * exptime * secpexp where exptime is read from inlist.
+.le
+.ls secpexp = 1.0
+The number of seconds per unit exposure time.
+.le
+.ls y2n_angle = 0.0
+The angle in degrees from the image y axis to the north axis measured from north
+through east. Y2n_angle can be used to orient the output image to within 45
+degrees of N up and E left if set correctly.
+.le
+.ls rotation = yes
+Is the rotation of the input image north axis to the east axis
+counter-clockwise ?
+.le
+
+.ih
+DESCRIPTION
+
+XNREGISTAR uses the image names, positional offsets, and exposure time data in
+\fIinlist\fR to create a combined output image \fIoutput\fR and associated
+exposure map image \fIexpmap\fR. Bad data in each input image is
+excluded from the output image and exposure map image using the rejection
+masks \fIrmasks\fR. Rejection masks consist entirely of 1's and 0's with
+1's defining the good pixels. Rejection masks are normally created by
+the XMSKCOMBINE task which combines information in the global bad pixel
+mask,  the cosmic ray masks (normally written by the XZAP or XNZAP tasks),
+the input image holes mask (normally written by the XSLM task), and the
+object masks (normally written by the MKMASK and MASKDEREG tasks), to create
+a single rejection mask for each input image. If the sections file
+\fIsections\fR is defined an output file describing the location of each
+input image in the output image is also written. The sections file is suitable
+for input to the MASKDEREG task.
+
+The input image names in column 1 of \fIinlist\fR are the names of the sky
+subtracted images normally written by the XSLM task. If \fIsinlist\fR is ""
+these names are written to the sections file \fIsections\fR. Otherwise the
+names in sinlist are used. The number of images in sinlist must be 0 or
+the same as the number of input images. 
+
+The offsets in columns 2 and 3 of \fIinlist\fR are assumed to be defined
+in the ab coordinate system. If \fIpixin\fR = yes then the ab coordinate
+system is assumed to be the same as the xy coordinate system of the
+reference image used to compute the offsets. If pixin = no then the
+\fIab_sense\fR, \fIxscale\fR, \fIyscale\fR, and \fIa2x_angle\fR are used
+to determine the transformation from the ab to the xy coordinate system.
+If \fImag\fR is > 1 then the input images are block replicated by a factor
+of mag before being combined into the output image and output exposure map
+image.
+
+The integer pixel offsets for each input image are computed as shown below.
+These offsets are passed directly to the IMCOMBINE task which does the actual
+image combining. The quantities a and b are the coordinates as read directly
+from \fIinlist\fR. 
+
+.nf
+	tmag = mag
+	if (pixin == yes) {
+	    ab_sense = yes
+	    txscale = -1.0
+	    tyscale = -1.0
+	    ta2x = 0.0
+	    sign = 1
+	} else if (ab_sense == yes) {
+	    txscale = xscale
+	    tyscale = yscale
+	    ta2x = a2x_angle
+	    sign = 1 
+	} else {
+	    txscale = xscale
+	    tyscale = yscale
+	    ta2x = a2x_angle
+	    sign = -1
+	}
+
+        x = tmag * (txscale * a * cos (ta2x) +
+	    tyscale * b * sign * sin (ta2x))
+        y = tmag * (tyscale * b * sign * cos (ta2x) -
+	    txscale * a * sin (ta2x))
+	if (x == 0.0)
+	    ix = 0
+	else
+	    ix = int (x + 0.5 * (x / abs (x)))
+	if (y == 0.0)
+	    iy = 0
+	else
+	    iy = int (y + 0.5 * (y / abs (y)))
+
+.fi
+
+If \fIfractional\fR = yes then the input images are shifted by the fractional
+part of the pixel offsets using the IMSHIFTS task before being combined with
+the IMCOMBINE task. If fractional = no the fractional part of the shift is
+ignored. The fractional shifts are defined as follows.
+
+.nf
+	xfrac = newx - ix
+	yfrac = newy - iy
+.fi
+
+The input images are multiplied by a factor equal to \fIncoavg /
+(mag * mag)\fR before being summed into the combined output image \fIoutput\fR.
+The summed output image is divided by the exposure map image to compute
+the final output image. Each input image contributes a factor equal to 
+\fItexp * ncoavg * secpexp\fR to the exposure map image, where texp is the
+exposure time read from \fIinlist\fR.
+
+The bad data masks \fIbpmask\fR, \fIcrmasks\fR, \fIholes\fR, and \fIomasks\fR
+are used to exclude bad pixels, known cosmic ray pixels, and undefined pixels
+from the combined output image and output exposure map image.
+
+Finally if \fIy2n_angle\fR and \fIrotation\fR are set correctly the output
+image and the output exposure map image will be oriented to within 45 degrees
+of north pointing up and east pointing left.
+
+.ih
+EXAMPLES
+
+1. Compute the total offsets for the series of 25 demo sky subtracted images
+whose total offsets were computed with the xdshifts task. Combine the images
+with xnregister using the bad pixel mask demo.pl. The output image and
+exposure map image will be written to demo.mosaic and exp_demo.mosaic
+respectively.
+
+.nf
+    cl> type simlist
+    demo01.sub.im
+    demo02.sub.imh
+    demo03.sub.imh
+    ...
+    ...
+    demo24.sub.imh
+    demo25.sub.imh
+
+    cl> xdshifts @simlist "" offsets cradius=5.0
+
+    cl> xmskcombine @simlist badpix.pl "" "" "" ".rjm"
+
+    cl> xnregistar offsets REJMASK  demo.mosaic demo.mosaic.exp ""
+.fi
+
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xmshifts,xfshifts,xrshifts,xdshifts,xslm,xzap,xnzap,imshift,blkrep,imcombine
+.endhelp

@@ -1,0 +1,179 @@
+.help xslm Sep00 xdimsum
+.ih
+NAME
+xslm -- sky subtract a list of images using a running mean
+.ih
+USAGE
+xslm inlist omasks nmean outlist
+.ih
+PARAMETERS
+.ls inlist
+The list of input images to be sky subtracted. The input image list is
+assumed to be in order.
+.le
+.ls omasks
+The list of object masks associated with each input image or the input
+image keyword containing the name of the object mask normally OBJMASK.
+Object masks contain 1's in object regions and 0's elsewhere.
+.le
+.ls nmean
+The number of neighboring images used to computed the sky image for
+each input image.
+.le
+.ls outlist
+The list of output sky subtracted images.
+.le
+.ls ssmasks = ".ssm"
+The list of output sky subtraction masks or the string appended to the output
+image name to create the output sky subtraction mask name. The sky subtraction
+masks are only created if the input object masks are defined, and contain
+the total number of input sky image pixels minus the number of sky image
+pixels actually used to compute the sky image. The sky subtraction masks are
+normally deleted on task termination.
+.le
+.ls hmasks = ".hom"
+The list of output holes masks or the string appended to the output image name
+to create the holes mask name. The holes masks are only created if the
+input object masks are defined, and there is at least one undefined sky image
+pixel. Holes masks contain 0's in undefined sky regions and 1's elsewhere. The
+holes mask is required by later processing steps and is normally not deleted
+on task termination.
+.le
+.ls forcescale = no
+Force recalculation of the input image statistics even though they have
+been previously computed and stored in the keyword "SKYMED".
+.le
+.ls useomask = yes
+Use the input object masks if any to compute the sky statistics  as well as
+create the sky images ?
+.le
+.ls statsec = ""
+The input image section used to compute the sky statistics for each input
+image. By default the entire input image is used.
+.le
+.ls nsigrej = 3.0
+The rejection limits used to compute the image statistics in number of sigma.
+.le
+.ls maxiter = 20
+The maximum number of rejection cycles used to compute the image statistics.
+.le
+.ls nskymin = 3
+The minimum number of input images used to compute the sky image.
+.le
+.ls nreject = 1
+The number of high and low side pixels to reject when computing the sky
+image.
+.le
+.ls del_ssmasks = yes
+Delete the sky subtraction masks at task termination ?
+.le
+.ls del_hmasks = no
+Delete the holes masks at task termination ?
+.le
+
+.ih
+DESCRIPTION
+XSLM computes the average sky image for each image in the input image list
+\fIinlist\fR and subtracts it from the input image to create the output list
+of sky subtracted images \fIoutlist\fR. The input image list is assumed to
+be ordered by time of observation. If the input object masks list
+\fIomasks\fR is defined then input image pixels in object regions are 
+removed from the sky image computation. XSLM also creates a list of rejected
+input image pixel masks \fIssmasks\fR and a list of holes masks
+\fIhmasks\fR.
+
+XSLM estimates the median for each input image using iterative rejection
+around the mean, pixels in the region defined by \fIstatsec\fR, and the
+bad pixel rejection parameters \fInsigrej\fR and \fImaxiter\fR. If 
+\fIuseomask\fR = yes and an object mask is defined for the input image,
+then pixels in object regions are also rejected from the sky statistics
+computation. The reciprocal of the median value is stored in the
+keyword "SKYMED". New sky statistics are computed if \fIforcescale\fR is
+yes or if the SKYMED keyword is undefined. XSLM uses the ITERSTAT task
+to compute the image statistics if the input object masks are undefined,
+otherwise it uses the MASKSTAT task. More information on ITERSTAT and
+MASKSTAT can be found in the appropriate help pages.
+
+XSLM computes the sky image for each input image by multiplying each
+input image by the value of the SKYMED keyword, and then computing the 
+mean of the \fInmean\fR neighbor images after rejecting the \fInreject\fR
+high and low pixels. For example if the number of input images is 25 and
+nmean is 6 then images 2-4 are used to compute the sky image for image 1,
+images 10-12 and 14-16 are used to compute the sky for image 13, and images
+22-24 are used to compute the sky image for image 25. There must be a minimum
+of \fInskymin\fR neighbor images or the sky image will not be computed. If the
+input object masks are defined then pixels in object regions are also rejected
+from the sky image computation. The IMCOMBINE task is used to compute the sky
+images.  More about IMCOMBINE can be found in the IMCOMBINE help page.
+
+After the sky image is computed XSLM divides it into the input image
+and computes the median of the ratio image using the ITERSTAT or MASKSTAT
+tasks described above. The final sky subtracted image is computing by
+multiplying the sky image by the median of the ratio image and subtracting it
+from the input image.  The IMEXPR task is used to do the scaling and
+subtraction. More about IMEXPR can be found in the appropriate help pages.
+
+If the input object masks are defined then XSLM also creates the sky subtraction
+masks \fIssmasks\fR. Each pixel of the sky subtraction pixel is
+equal to the total number of input images used to compute the sky image minus
+the number of input image pixels actually used. If at least one pixel in the
+sky subtraction mask is equal to the number of input images used to
+compute the sky frame then at least one sky pixel was undefined and a holes
+mask \fIhmasks\fR is created. The holes masks are used by the XNREGISTAR task
+to create the combined final image.
+
+If \fIdel_ssmasks\fR and \fIdel_hmasks\fR then the sky subtraction  and
+holes masks are deleted at task termination.
+
+.ih
+EXAMPLES
+
+1. Sky subtract the demo images with  object masking.
+
+.nf
+    cl> type demo.list
+    demo01
+    demo01
+    ...
+    demo25
+
+    cl> xslm @demo.list "" 6 ".sub" nsigrej=5.0 maxiter=10
+
+    cl> dir *.sub.imh
+    demo01.sub.imh
+    demo01.sub.imh
+    ...
+    demo25.sub.imh
+.fi
+
+
+2. Repeat the previous example but specify an output image list.
+
+.nf
+    cl> xslm @demo.list "" 6 @outlist  nsigrej=5.0 maxiter=10
+.fi
+
+
+3. Repeat example 1 with object masking assuming that the object
+mask names are stored in the keyword "OBJMASK"
+
+.nf
+    cl> xslm @demo.list "OBJMASK" 6 ".sub"  nsigrej=5.0 maxiter=10
+.fi
+
+
+4. Repeat example 2 with object masking assuming that the object
+mask names are stored in the image list objmasks.
+
+.nf
+    cl> xslm @demo.list @objmasks 6 @outlist nsigrej=5.0 maxiter=10
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+iterstat,maskstat,imcombine,imexpr
+.endhelp

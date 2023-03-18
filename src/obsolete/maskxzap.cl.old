@@ -1,0 +1,240 @@
+procedure maskxzap(inlist,outlist)
+
+# Variant of xzap which is called in maskpass and therefore assumes the
+# presence of objmask files from a combined image mask.
+#  Cosmic ray cleaning routine using median filtering.
+#  Latest revision:   8 Oct 1993
+#  Mark Dickinson
+#
+#  Calls scripts fileroot.cl, iterstat.cl, makemask.cl, minv.cl
+
+string	inlist	    {prompt="Image(s) for cosmic ray cleaning"}
+string	outlist	    {prompt="Output image(s)"}
+int	zboxsz	    {5,min=3,prompt="Box size for zapping"}
+real	nsigma	    {5.,min=0.,prompt="Number of sky sigma for zapping threshold"}
+real	nnegsigma   {0.,min=0.,prompt="Number of sky sigma for negative zapping"}
+int	nrings	    {0,min=0,prompt="Number of pixels to flag as buffer around CRs"}
+real	nobjsigma   {2.,min=0.,prompt="Number of sky sigma for object identification"}
+int     skyfiltsize {15,min=0,prompt="  Median filter size for local sky evaluation"}
+int	skysubsample{1,min=0,prompt="  Block averaging factor before median filtering"}
+int	ngrowobj    {0,min=0,prompt="  Number of pixels to flag as buffer around objects"}
+string	statsec	    {"",prompt="Image section to use for computing sky sigma"}
+bool	deletemask  {no, prompt="Delete CR mask after execution?"}
+bool	cleanpl     {yes,prompt="Delete other working .pl masks after execution?"}
+bool	cleanimh    {yes,prompt="Delete working images after execution?"}
+bool	verbose     {yes,prompt="Verbose output?"}
+bool	checklimits {yes,prompt="Check min and max pix values before filtering?"}
+bool	unzap       {no,prompt="Unzap using objects from objmask files?"}
+real	zmin        {-32768.,prompt="Minimum data value for fmedian"}
+real	zmax        {32767.,prompt="Minimum data value for fmedian"}
+
+struct	*inimglist
+struct	*outimglist
+struct	*statlist
+
+begin
+
+	real	skysig,skymode
+	real 	crthresh,objthresh,negthresh
+	real	dmin,dmax
+	int	nbox,nbox2
+	int	nin
+	string 	ext, infile, outfile, img, outimg, statfile
+	bool	maskobj, maskneg
+
+# Check input parameters.
+	if (nnegsigma > 0.) 
+		maskneg = yes 
+	   else 
+		maskneg = no
+	if (nobjsigma == 0.) {
+		print ("No object masking will be used during zapping.")
+		maskobj = no
+	   } else {
+		maskobj = yes
+	}
+
+# Expand file lists into temporary files.
+	infile =  mktemp("tmp$zap")
+	outfile = mktemp("tmp$zap")
+	sections (inlist,option="fullname",>infile)
+	nin = sections.nimages
+	sections (outlist,option="fullname",>outfile)
+	if (nin != sections.nimages) {
+		print ("ERROR:   Numbers of input and output images do not match.")
+		return
+	}
+	inimglist = infile
+	outimglist = outfile
+	fileroot ("")
+	ext = fileroot.defextn
+
+# Loop through input files:
+	while (fscan(inimglist,img) != EOF) {
+
+# Strip extension off input file name.
+		fileroot (img,validim+)
+		img = fileroot.root
+
+# Read name of output file.
+		if (fscan(outimglist,outimg) == EOF) {
+			print ("ERROR:   Problem scanning output file name in xzap.")
+			return
+		}
+		fileroot (outimg,validim+)
+		outimg = fileroot.root
+
+		print ("Working on ",img," ---ZAP!--> ",outimg)
+
+# Calulate sky mean and RMS noise using iterative sigma rejection.
+		if (verbose) print ("     Computing statistics.")
+		iterstat (img//statsec, statsec="", nsigrej=5.0, maxiter=10,
+		    lower=INDEF, upper=INDEF, verbose=verbose, show=verbose)
+		skymode = iterstat.imean
+		skysig  = iterstat.isigma
+
+# Median filter image to produce file _fmed_//img
+
+		if (verbose) print ("     Median filtering.")
+
+# First, check limits of data range.  Wildly large (positive or negative) data values
+# will screw up fmedian calculation unless checklimits = yes and zmin and zmax are set
+# to appropriate values, e.g. zmin=-32768, zmax=32767.   Note that the old fmedian
+# bug which occurred if zmin=hmin and zmax=hmax has been fixed in IRAF version 2.10.1.
+# The pipe to dev$null, however, is included because V2.10.1 and .2 have debugging 
+# print statements accidentally left in the fmedian code.  
+
+		if (checklimits) {
+			minmax (img,force+,update+,ve-)
+			if (verbose) print("     Data minimum = ",minmax.minval,
+						" maximum = ",minmax.maxval)
+		}
+		if (checklimits && (minmax.minval < zmin || minmax.maxval > zmax)) {
+			if (minmax.minval < zmin) {
+				dmin = zmin
+			   } else { 
+				dmin = minmax.minval
+			}
+			if (minmax.maxval > zmax) {
+				dmax = zmax
+			   } else { 
+				dmax = minmax.maxval
+			}
+			if (verbose) print ("     Truncating data range ",dmin," to ",dmax)
+			fmedian (img,"_fmed_"//img,xw=zboxsz,yw=zboxsz,
+				 boundary="reflect",hmin=-32768,hmax=32767,
+				 zmin=dmin,zmax=dmax,>&"dev$null")
+		   } else {
+			fmedian (img,"_fmed_"//img,xw=zboxsz,yw=zboxsz,boundary="reflect",
+				 hmin=-32768,hmax=32767,zmin=INDEF,zmax=INDEF,>&"dev$null")
+		}
+
+# Take difference to produce "unsharp masked" image _cr_//img
+		imarith (img,"-","_fmed_"//img,"_cr_"//img)
+
+# Threshold _cr_//img at nsigma*skysig to make CR mask _peaks_//img.  
+#    Potential CRs --> 1
+#    "Blank sky"   --> 0
+# Note that crthresh will be positive by definition.
+		if (verbose) print ("     Masking potential CR events.")
+		imcopy ("_cr_"//img,"_peaks_"//img//ext,ve-)
+		crthresh = nsigma*skysig   
+		imreplace ("_peaks_"//img//ext,0.,upper=crthresh,lower=INDEF)
+		imreplace ("_peaks_"//img//ext,1.,lower=crthresh,upper=INDEF)
+# Make PL format version of _peaks_//img and delete IMH format version.
+		imcopy   ("_peaks_"//img//ext,"_peaks_"//img//".pl",ve-)
+		imdelete ("_peaks_"//img//ext,ve-)
+
+# Object masking:  create mask identifying where objects might be.
+
+		if (maskobj) {
+
+			if (verbose) print ("     Creating object mask.")
+		        objthresh = nobjsigma*skysig  
+
+			makemask ("_fmed_"//img,pre="_obj",headlist="",subs=skysubsample,
+			  filts=skyfiltsize,nsmoo=0,threshty="constant",constth=objthresh,
+			  ngrow=ngrowobj,statsec=statsec,checklimits=checklimits,verbose=verbose)
+
+# Invert mask to make "objects" --> 0 and "sky" --> 1.
+
+			minv ("_obj_fmed_"//img//".pl","_obj_fmed_"//img//".pl")
+		}
+
+# If not masking objects, final CR mask is just _peaks_//img.  If we are
+# masking objects, take product of object and CR masks to make crmask_//img
+
+		if (maskobj) {
+			imarith ("_peaks_"//img//".pl","*","_obj_fmed_"//img//".pl",
+				 "crmask_"//img//".pl")
+		   } else {
+			imcopy ("_peaks_"//img//".pl","crmask_"//img//".pl",ve-)
+		}
+
+# Grow additional buffer region around identified CRs.
+		if (nrings > 0) {
+			if (verbose) print ("     Growing mask rings around CR hits.")
+			nbox = 2 * nrings + 1
+			nbox2 = nbox * nbox
+			imarith ("crmask_"//img//".pl","*",nbox2,"crmask_"//img//".pl")
+			boxcar ("crmask_"//img//".pl","crmask_"//img//".pl",
+				xw=nbox,yw=nbox)
+			imreplace ("crmask_"//img//".pl",1,lower=1,upper=INDEF)
+		}
+
+# Identify negative pixels if desired.  No "rings" are grown around negative 
+		if (maskneg) {
+			if (verbose) print ("     Masking deviant negative pixels.")
+			imcopy ("_cr_"//img,"_neg_"//img,ve-)
+			negthresh = -1.*nnegsigma*skysig
+			imreplace ("_neg_"//img,0.,
+				lower=negthresh,upper=INDEF)
+			imreplace ("_neg_"//img,1.,
+				upper=negthresh,lower=INDEF)
+			imcopy ("_neg_"//img//ext,"_neg_"//img//".pl",ve-)
+			imdelete ("_neg_"//img//ext,ve-)
+			imarith ("crmask_"//img//".pl","+","_neg_"//img//".pl",
+				 "crmask_"//img//".pl")
+			imreplace ("crmask_"//img//".pl",1,lower=1,upper=INDEF)
+		}
+
+# unzap pixels which are where objects are as defined by objmask files
+		if  (unzap) {
+				imarith("objmask_"//img//".pl","*","crmask_"//img//".pl",
+                        		"crmask_"//img//".pl",ver-)
+		}
+		if (verbose) print ("     Replacing CR hits with local median.")
+# Multiply CR mask by crmask_//img to make "comic rays only" image _cronly_//img
+		imarith ("_cr_"//img//ext,"*","crmask_"//img//".pl",
+			 "_cronly_"//img//ext)
+
+# Subtract _cronly_//img from data to produce clean image "outimg". 
+#      Note that this effectively replaces the masked regions with the local
+#      median, since _cronly_//img = img - _fmed_//img.
+		imarith (img,"-","_cronly_"//img,outimg)
+
+# Record CR mask name in headers of input and output images
+
+		hedit (img//","//outimg,"CRMASK","crmask_"//img//".pl",
+		       add+,ver-,update-,>&"dev$null")
+
+# Clean up.
+		if (deletemask) delete ("crmask_"//img//".pl",ve-)
+		if (cleanpl) {
+			delete ("_peaks_"//img//".pl",ve-)
+			if (maskobj) delete ("_obj_fmed_"//img//".pl",ve-)
+			if (maskneg) delete ("_neg_"//img//".pl",ve-)
+		}
+		if (cleanimh) {
+			imdelete ("_fmed_"//img,ve-)
+			imdelete ("_cr_"//img,ve-)
+			imdelete ("_cronly_"//img,ve-)
+		}
+	if (verbose) print ("     Done.")
+	}
+
+	inimglist = ""; delete (infile, verify-)
+	outimglist = ""; delete (outfile, verify-)
+	statlist = ""
+
+end

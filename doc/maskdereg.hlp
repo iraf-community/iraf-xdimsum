@@ -1,0 +1,91 @@
+.help maskdereg Sep00 xdimsum
+.ih
+NAME
+maskdereg -- create individual object masks from the combined image mask
+.ih
+USAGE
+maskdereg omask sections outlist
+.ih
+PARAMETERS
+.ls omask
+The input object mask for the combined image. Omask is usually created by the
+mkmask task for the combined image created by the xnregistar task. The input
+object mask is assumed to consist entirely of 1's and 0's with object
+regions set to 1.
+.le
+.ls sections
+The input sections or corners file usually written by the xnregistar task.
+Sections contains the name of the original input images, the x and y
+coordinates of the lower left corner of the input image in the combined 
+image, and the x and y coordinates of the upper right corner of the input
+image in the combined image, in columns 1 through 5 respectively.
+.le
+.ls outlist
+The list of output image masks or the string appended to the input image names
+in \fIsections\fR to create the output individual mask names. 
+.le
+.ls y2n_angle = 0.0
+The angle in degrees from the image y axis to the north axis measured from north
+through east. Y2n_angle is used to reorient the input object mask before
+creating the individual output object masks.
+.le
+.ls rotation = yes
+Is the rotation of the input image north axis to the east axis counter-clockwise
+ ?  Y2n_angle is used to reorient the input object mask before creating the
+individual output object masks.
+.le
+.ls mkcrmask = no
+Create object masks for comparison with the cosmic ray masks or for
+use with the second pass sky subtraction task xslm ?
+.le
+.ls update = yes
+Write the names of the output object masks to the headers of the input images.
+If mkcrmask is "no" the object mask name keyword is "OBJMASK", if mkcrmask is
+"yes" it is "CROBJMAS".
+.le
+.ih
+DESCRIPTION
+MASKDEREG creates individual object masks for the original input images
+using the object mask \fIomask\fR for the combined image  written by the
+MKMASK task and the sections file \fIsections\fR written by the XNREGISTAR
+task.
+
+The sections file contains the name of the original input image, the x and y
+coordinates of the lower left corner of the input image in the combined image,
+and the x and y coordinates of the upper right corner of the input image in
+the combined image, in columns 1 through 5.
+
+The output object masks are assigned names of the form input image name //
+outlist if outlist begins with a ".", e.g. "demo01.msk.pl" if outlist =
+".msk", and the original image name is "demo01.fits".
+All object masks are assumed to consist entirely of 0's and 1's with the
+object regions assigned values of 1.
+
+By default XNREGISTAR orients the combined image to within 45 degrees
+of north pointing up and east pointing left. Therefore the input object
+mask created by MKMASK will normally have this orientation is well. The
+parameters \fIy2n_angle\fR and \fIrotation\fR are used to reorient the
+input object mask so that the orientation of the individual output object
+masks matches the orientation of the original images.
+
+If \fIupdate\fR is "yes" then the name of output object mask is written
+into the header of the original input image.  If \fImkcrmask\fR is "no"
+the object mask keyword is "OBJMASK", otherwise it is "CROBJMAS".
+
+.ih
+EXAMPLES
+
+1. Create individual object masks from a combined image mask.
+
+.nf
+    cl> maskdereg mosaic.msk mosaic.corners ".obm" y2n_angle=0.0 \
+        rotation+ mkcrmask- update+
+.fi
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+xnregistar,mkmask,orient
+.endhelp

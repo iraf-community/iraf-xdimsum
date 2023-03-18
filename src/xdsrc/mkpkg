@@ -1,0 +1,12 @@
+# Make the XDIMSUM Package
+
+$checkout libpkg.a ../..
+$update   libpkg.a
+$checkin  libpkg.a ../..
+$exit
+
+libpkg.a:
+	maskinterp.x	<imhdr.h>
+	t_avshift.x
+	mptools.x	<ctype.h> <imhdr.h> <imset.h> <pmset.h> <error.h>
+        ;

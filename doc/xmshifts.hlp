@@ -1,0 +1,149 @@
+.help xmshifts Sep00 xdimsum
+.ih
+NAME
+xmshifts -- compute total offsets for an ordered sequence of images using
+object detection and list matching techniques
+.ih
+USAGE
+xmshifts inlist output shifts hwhmpsf threshold xlag ylag tolerance
+.ih
+PARAMETERS
+.ls inlist
+The list of input sky subtracted images. The input image list must be in order
+with each image offset from the previous one by approximately \fIxlag\fR
+pixels in x and \fIylag\fR pixels in y.
+.le
+.ls output
+The output total offsets file suitable for input to the xnregistar task.
+Output contains the input image name, the total x offset, the total y offset,
+and the default exposure time in columns 1 through 4 respectively. The total
+x and y offsets of image N are defined as the shifts x(N) - x(1) and
+y(N) - y(1) required to place image N in the same coordinate system as image 1.
+The default exposure time is 1 time unit.
+.le
+.ls shifts = ""
+The optional relative offsets file. Shifts contains the input image name,
+the relative x offset and the relative y offset in columns 1 through 3
+respectively. The relative offsets of image N are defined as the shifts
+x(N-1) - x(N) and y(N-1) - y(N) required to register image N to image N-1.
+.le
+.ls hwhmpsf = 1.25
+The approximate half-width at half-maximum of the image PSF in pixels. If the
+PSF width varies significantly over the sequence hwhmpsf should be set to the
+average value for the sequence.
+.le
+.ls threshold = 50.0
+The object detection threshold above local background in ADU. Threshold should
+be set no lower than 4 * sigma where sigma is the standard deviation of the
+background pixels in ADU.
+.le
+.ls xlag = 0.0, ylag = 0.0
+The approximate relative offsets x(N) - x(N-1) and y(N) - y(N-1) between
+adjacent images in the input image list.
+.le
+.ls tolerance = 5.0
+The object matching tolerance in pixels used in the list matching step.
+.le
+.ls fradius = 2.5 (hwhmpsf)
+The fitting radius in units of hwhmpsf. Fradius defines the size of the
+Gaussian kernel used to compute the density enhancement image and the size
+of the image region used to do the moment analysis in the object detection
+step.
+.le
+.ls sepmin = 5.0 (hwhmpsf)
+The minimum separation for detected objects in units of hwhmpsf.
+.le
+.ls datamin = INDEF, datamax = INDEF
+The minimum and maximum good data values in ADU. Datamin and datamax
+default to the constants -MAX_REAL and MAX_REAL respectively.
+.le
+.ls roundlo = 0.0, roundhi = 0.5
+The minimum and maximum ellipticity values for detected objects, where
+ellipticity is defined as 1 - b / a, and a and b are the semi-major and
+semi-minor object axis lengths respectively.
+.le
+.ls sharplo = 0.5, sharphi = 2.0
+The minimum and maximum sharpness values of the detected objects, where
+sharpness is defined to be the ratio of the object size determined by
+moments analysis to the hwhmpsf parameter value.
+.le
+.ls nxblock = INDEF, nyblock = INDEF
+The working block size. If undefined nxblock and nyblock default to the number
+of columns and rows in the input image respectively.
+.le
+
+.ih
+DESCRIPTION
+
+XMSHIFTS computes total offsets for the images in the input image list
+\fIinlist\fR and writes the results in a form suitable for input to the
+xnregistar task to \fIoutput\fR. If the \fIshifts\fR parameter is defined
+the relative offsets for adjacent images are written to the file \fIshifts\fR.
+
+XMSHIFTS requires the input image list to be ordered and also requires that
+the relative offsets between adjacent images are approximately equal
+to \fIxlag\fR and \fIylag\fR pixels.
+
+XMSHIFTS computes the relative offsets between adjacent images by first
+detecting objects in each input image using the STARFIND task,  and then
+by matching the resulting detected object lists in adjacent images using
+the XYXYMATCH task.
+
+STARFIND searches the input images for local density maxima with half-widths at
+half-maxima of ~ \fIhwhmpsf\fR and peak amplitudes greater than \fIthreshold\fR
+counts above the local background, which are brighter than all surrounding
+objects within a radius of \fIsepmin\fR * \fIhwhmpsf\fR pixels. Data within
+\fIfradius\fR * \fIhwhmpsf\fR pixels of the detected density maximum and within
+the good data range defined by the \fIdatamin\fR and \fIdatamax\fR parameters
+are used to estimate the object position, shape, and size relative to the PSF.
+Objects outside the shape and size limits specified by the \fIroundlo\fR,
+\fIroundhi\fR, \fIsharplo\fR, and \fIsharphi\fR parameters are eliminated from
+the final object list. By default STARFIND reads the entire input image into
+memory. If the input images become too large or memory is limited the
+\fInyblock\fR parameter can be set. For the sake of efficiency \fInxblock\fR
+should be left set to INDEF so that XMSHIFTS always operates on an integral
+number of image lines. More information on the STARFIND algorithms can be found
+in the STARFIND task help page.
+
+XYXYMATCH matches objects in adjacent images using the tolerance matching
+algorithm, a radial tolerance of \fItolerance\fR pixels, and initial guesses
+for the relative x and y offsets of \fIxlag\fR and \fIylag\fR. More information
+on the XYXYMATCH algorithms can be found in the XYXYMATCH task help page.
+
+The relative offsets between adjacent images are estimated by computing the
+average shift of all the detected matched objects. If adjacent frames contain no
+objects in common the relative offsets are set to \fIxlag\fR and \fIylag\fR. 
+Total offsets are computed by summing the relative offsets.
+
+.ih
+EXAMPLES
+
+1. Compute the total offsets for a series of 250 ONIS sky subtracted images
+which are offset by approximately 50 pixels in x and 0.5 pixels in y. Output
+both the total and relative offsets. Since the noise in the sky background
+for these images is around 12 ADU use a detection threshold of 50 ADU.
+
+.nf
+    cl> type simlist
+    ss_kk07_001
+    ss_kk07_002
+    ss_kk07_003
+    ...
+    ...
+    ss_kk07_249
+    ss_kk07_250
+
+    cl> xmshifts @simlist offsets shifts 1.5 50.0 50.0 0.5 tolerance=2.5
+
+    cl> xnregistar offsets "" "" "" kk07.mosaic kk07.corners
+.fi
+
+.ih
+TIME REQUIREMENTS
+
+.ih
+BUGS
+.ih
+SEE ALSO
+xfshifts,xdshifts,starfind,xyxymatch
+.endhelp

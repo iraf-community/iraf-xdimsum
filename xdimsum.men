@@ -1,0 +1,29 @@
+        xmosaic - Driver sript for first pass and mask pass processing steps 
+     xfirstpass - Driver script for first pass processing steps
+      xmaskpass - Driver script for mask pass processing steps 
+
+           xslm - Sky subtract images using running mean and imcombine
+          xnslm - Sky subtract images using running mean 
+	maskfix - Fix bad pixel in images using a bad pixel mask
+	   xzap - Remove cosmic rays from images using median filtering
+	  xnzap - Remove cosmis rays from images using averaging filter
+   badpixupdate - Update bad pixel mask to include bad pixels detected by xzap
+    xmskcombine - Combine bad pixel, cosmic ray, holes, and object masks
+     xnregistar - Mosaic the images using sub-pixel replication and masking
+         mkmask - Create the initial master object mask
+      maskdereg - Deregister master object mask to individual object masks
+       xdshifts - Compute shifts using image display and centroiding techniques
+       xfshifts - Compute shifts using star finding and centroiding techniques
+       xmshifts - Compute shifts using star finding and list matching techniques
+       xrshifts - Compute shifts using x-correlation techniques
+
+          xlist - Create image sublists used by xslm
+       iterstat - Compute image statistics using iterative rejection
+      miterstat - Compute image statistics using a mask and iterative rejection
+       maskstat - Compute mask statistics using iterative rejection
+       makemask - Make an object mask for a single image
+      sigmanorm - Renormalize mosaic image to uniform pixel-to-pixel rms
+         orient - Reorient image to N up and E left or undo re-orientation
+
+	  demos - Xdimsum demo data script
+	  guide - Guide to using xdimsum with the xmosaic task

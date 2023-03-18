@@ -1,0 +1,44 @@
+.help sigmanorm Sep00 xdimsum
+.ih
+NAME
+sigmanorm - normalize the input image to uniform pixel-to-pixel rms noise 
+   using an exposure map image
+.ih
+USAGE
+sigmanorm input expmap output
+.ih
+PARAMETERS
+.ls input
+The name of the input image.
+.le
+.ls expmap
+The name of the input exposure map image.
+.le
+.ls output
+The name of the output normalized image.
+.le
+.ih
+DESCRIPTION
+SIGMANORM divides the input image \fIinput\fR by a factor equal to the
+square root of the exposure map image \fIexpmap\fR divided by the the
+maximum exposure value to create the output normalized image \fIoutput\fR
+which has a uniform pixel-to-pixel rms noise. 
+
+SIGMANORM is currently used by the MKMASK task.
+.ih
+EXAMPLES
+
+1. Create a normalized input image for a first pass mosaic image.
+
+.nf
+    cl> sigmanorm fp_mosaic exp_fp_mosaic norm_fp_mosaic
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+mkmask
+.endhelp

@@ -1,0 +1,61 @@
+.help maskfix Sep00 xdimsum
+.ih
+NAME
+maskfix -- replace bad pixels in images
+.ih
+USAGE
+maskfix inlist bpmasks bpvalue
+.ih
+PARAMETERS
+.ls inlist
+The list of input images in which the bad pixels are to be fixed.
+.le
+.ls bpmasks
+The list of bad pixel masks corresponding to inlist. Bad pixel masks are
+assumed to be the same size as the input images and to consist entirely
+of 0's and 1's with bad pixel values equal to badval. The number of bad pixel
+masks must be 1 or equal to the number of input images.
+.le
+.ls badval
+The input mask bad pixel value which must be 0 or 1.
+.le
+.ls forcefix = no
+If forcefix = yes then all bad pixels in inlist are replaced. If forcefix = no
+and the input images contain the keyword "MASKFIX" then maskfix assumes that
+the bad pixels have already been fixed and no further pixel editing is done.
+.le
+.ih
+DESCRIPTION
+
+MASKFIX replaces bad pixels in \fIinlist\fR by linearly interpolating across
+bad columns within each image line. The bad pixels are assumed to be those
+pixels in the bad pixel masks \fIbpmasks\fR which have a value of \fIbadval\fR.
+
+MASKFIX writes the keyword "MASKFIX" to the input image header when it
+completes replacing the bad pixels. If \fIforcefix\fR = no and the keyword
+"MASKFIX" already exists in the input image header then no further image
+editing is done. If \fIforcefix\fR = yes bad pixel replacement is performed
+regardless of the presence or absence of "MASKFIX".
+
+.ih
+EXAMPLES
+
+1. Replace bad pixels in an image.
+
+.nf
+    cl> maskfix demo01.sub.imh demo.pl 0
+.fi
+
+1. Replace bad pixels in a list of images using a single bad pixel mask.
+
+.nf
+    cl> maskfix @sslist demo.pl 0
+.fi
+
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+.endhelp

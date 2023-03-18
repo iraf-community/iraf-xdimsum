@@ -1,0 +1,129 @@
+.help mkmask Sep00 xdimsum
+.ih
+NAME
+mkmask -- create an object mask for an image with or without an exposure map
+using a median filter
+.ih
+USAGE
+mkmask input expmap output nthreshold
+.ih
+PARAMETERS
+.ls input
+The input image name. The input image is assumed but not required to be a
+mosaic of several input images.
+.le
+.ls expmap
+The input exposure map image which defines the total expsoure per pixel.
+Expmap is used normalize the input image to uniform pixel-to-pixel noise.
+If the exposure map is undefined then a uniform exposure level for all
+the pixels is assumed.
+.le
+.ls output
+The name of the output object mask.
+.le
+.ls nthreshold
+If interactive = no then the object detection threshold used to create the
+object mask equals nthreshold times the internally computed recommended
+threshold.
+.le
+.ls negthresh = no
+Use negative as well as positive masking thresholds ?
+.le
+.ls statsec = ""
+The input image section used to compute the recommended object detection
+threshold.
+.le
+.ls nsigrej = 3.0
+The bad pixel rejection criterion used to compute the recommended object
+detection threshold.
+.le
+.ls maxiter = 20
+The maximum number of bad pixel rejection iterations used to compute the
+recommended object detection threshold.
+.le
+.ls subsample = 1
+The block averaging factor applied to the normalized input image before median
+filtering.
+.le
+.ls filtsize = 15
+The size of the median filter. The effective size of the median filter
+is \fIsubsample\fR * filtsize.
+.le
+.ls nsmooth = 3
+The size of the boxcar smoothing filter applied to the median filtered image.
+.le
+.ls ngrow = 0
+The half_width of the region growing box. 
+.le
+.ls interactive = yes
+Set the value of the object detection threshold interactively ?
+.le
+.ls threshold
+The value of threshold if interactive is yes.
+.le
+.ih
+DESCRIPTION
+MKMASK creates an object mask called \fIoutput\fR for the
+input image \fIinput\fR using an optional exposure map \fIexpmap\fR and an
+object detection threshold set by the user if \fIinteractive\fR is yes or
+equal to \fInthreshold\fR times an internally computed recommeded number if
+\fIinteractive\fR is no.
+
+MKMASK normalizes the input image to a uniform pixel-to-pixel rms by 
+multiplying by a factor of sqrt (expmap / maxexpmap) where maxexpmap is the
+maximum exposure level in the exposure map.
+
+The standard deviation of the normalized input image pixels is computed using
+pixels in \fIstatsec\fR and iterative rejection  with rejection parameters of
+\fInsigrej\fR and \fImaxiter\fR. Pixels with 0's in the exposure map are
+excluded from the image statistics computation. If the exposure map is
+undefined then a uniform exposure level is assumed.
+
+If \fIinteractive\fR = yes the user is prompted for the detection threshold
+\fIthreshold\fR. If interactive = no the detection threshold is set to
+\fInthreshold\fR * the recommended threshold where the recommended threshold
+is defined to be
+
+.nf
+	recthreshold = 4.5 * sigma / nsmooth
+.fi
+
+Sigma is the standard deviation of the sky pixels. If \fInegthresh\fR
+is set to "yes" then both negative and positive masking threshold are used.  
+
+Before median filtering the normalized input image is block-averaged by a
+factor of \fIsubsample\fR. The size of the median filter \fIfiltsize\fR
+refers to the block-averaged image. Therefore the effective size of
+the median filter is actually subsample * filtsize. After median filtering
+but before thresholding the image block-replicated to its original
+size and is smoothed using a boxcar filter of size \fInsmooth\fR. 
+
+The filtered and smoothed image pixels greater than or equal to the detection
+threshold are set to 1 in the output object mask. The remaining pixels are set
+to 0. If \fIngrow\fR > 0  pixels within a box of half-width ngrow pixels
+are assumed to be object pixels.
+
+The actual mask creation is done by the MAKEMASK task. More information
+on MAKEMASK can be found in the task help page.
+
+If \fIinteractive\fR is yes then the final object mask is displayed on the
+image display.
+
+
+.ih
+EXAMPLES
+
+1. Create the object mask for the combined image created with xnregistar.
+
+.nf
+    cl> mkmask mosaic mosaic.exp mosaic.pl 1.1 statsec="" nsigrej=5.0 \
+        maxiter=10 nsmooth=3 subsample=2 filtsize=15 ngrow=0 interactive-
+.fi
+.ih
+TIME REQUIREMENTS
+.ih
+BUGS
+.ih
+SEE ALSO
+makemask, blkavg, fmedian, boxcar
+.endhelp

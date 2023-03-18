@@ -1,0 +1,12 @@
+# STRIP.XDIMSUM -- Rmfiles command script, used to strip the XDIMSUM
+# directories of all files not required for ordinary runtime use.
+
+src		-allbut .hlp .hd .men .cl .par .key .dat .mip .fits
+
+
+# Sun/IRAF only.
+# ---------------
+-file bin.f68881/OBJS.arc.Z
+-file bin.ffpa/OBJS.arc.Z
+-file bin.sparc/OBJS.arc.Z
+-file bin.i386/OBJS.arc.Z

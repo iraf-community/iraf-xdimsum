@@ -1,0 +1,369 @@
+.help xfirstpass Sep00 xdimsum
+.ih
+NAME
+xfirstpass -- sky subtract, cosmic ray correct, and combine a list of images
+without object masks
+.ih
+USAGE
+xfirstpass inlist reference output expmap
+.ih
+PARAMETERS
+.ls inlist
+The list of input images to be combined.
+.le
+.ls reference
+The name of the reference image used to compute offsets if \fImkshifts\fR is
+yes. If reference is undefined the first image in \fIinlist\fR is assigned to
+be the reference image.
+.le
+.ls output
+The name of the output combined image.
+.le
+.ls expmap = ".exp"
+The name of the output exposure map image or the string appended to the output
+combined image name \fIoutput\fR to create the output exposure map image name.
+.le
+
+.ls statsec = ""
+The input image section used to compute the sky statistics for each input
+image in the sky subtraction and cosmic ray removal steps. By default the
+entire input image is used.
+.le
+.ls nsigrej = 3.0
+The rejection limits used to compute the sky statistics.
+.le
+.ls maxiter = 20
+The maximum number of rejection cycles used to compute the sky statistics.
+.le
+
+.ls xslm = yes
+Perform the sky subtraction step using the xnslm task id \fInewxslm\fR is yes
+or the xslm task if it is no ? The input images must be sky subtracted before
+the bad pixel fixing, cosmic ray removal, and image combining steps can be
+performed.
+.le
+.ls sslist = ".sub"
+The output sky subtracted image list or the string appended to the input image
+names in \fIinlist\fR to create the names of the output sky subtracted images.
+.le
+.ls newxslm = no
+Use the new xnslm task rather than the original xslm task ?
+.le
+.ls forcescale = yes
+Force recalculation of the input image statistics by even though they have
+been computed previously and stored in the keyword "SKYMED".
+.le
+.ls nmean = 6
+The number of neighboring images used by the sky subtraction task to computed
+the sky image for each input image.
+.le
+.ls nskymin = 3
+The minimum number of input images used by the sky subtraction task to compute
+the sky image.
+.le
+.ls nreject = 1
+The number of high and low side pixels to be rejected  by the sky subtraction
+task when it computes the sky image.
+.le
+.ls cache = yes
+Enable image cacheing fro improved efficiency in the new xnslm task ?
+.le
+
+.ls maskfix = yes
+Use the bad pixel mask \fIbpmask\fR to fix bad pixels in the sky subtracted
+images ?
+.le
+.ls bpmask
+The name of the input image bad pixel mask used to fix bad pixel in the sky
+subtracted images. Bpmask is assumed to be the same for all the input images
+and to consist of 0's in the bad pixel regions and 1's elsewhere. If bpmask is
+undefined the bad pixel fixing step is skipped.
+.le
+.ls forcefix = yes
+Force bad pixel fixing even though the images have been previously fixed as
+indicated by the presense of the keyword "MASKFIX" in their headers.
+.le
+
+.ls xzap = yes
+Remove cosmic rays from the sky subtracted images using the xnzap task
+if \fInewxzap\fR = yes or the xzap task if \fInewxzap\fR = no ?
+.le
+.ls crmasks = ".crm"
+The list of output cosmic ray masks or the string appended to the input image
+names in \fIinlist\fR to create the names of the output cosmic ray masks.
+Cosmic ray masks consist of 1's in the cosmic ray regions and 0's elsewhere. 
+.le
+.ls newxzap = no
+Use the new xnzap task rather than the original xzap task ?
+.le
+.ls badpixupdate = yes
+Update the bad pixel mask \fIbpmask\fR by adding cosmic ray pixels detected in
+\fInrepeats\fR or more sky subtracted images to the bad pixel mask. Bad pixel
+mask updating is only done if \fIxzap\fR is yes.
+.le
+.ls nrepeats = 3
+If a pixel is detected as a cosmic ray in \fInrepeats\fR or more images and
+\fIbadpixupdate\fR is yes then the pixel is set to bad in the bad pixel
+mask \fIbpmask\fR.
+.le
+
+.ls mkshifts = no
+Determine the shifts required to combine the sky subtracted images interactively
+using image display and image cursor ? In order to use this option the
+image display server must be running before xfirstpass is called.
+.le
+.ls chkshifts = no
+Edit the lists of input image reference stars, the list of registration
+stars, and the final offsets created by the user in the interactive shift
+computation step.
+.le
+.ls cradius = 5.0
+The centroiding radius in pixels used in the interactive offset computation
+step.
+.le
+.ls maxshift = 5.0
+The maximum permitted difference in pixels between the final computed offset
+and the predicted offset determined in the interactive offset computation
+step.
+.le
+
+.ls xnregistar = yes
+Compute the combined output image and exposure map image using offsets and
+exposure time scaling ?
+.le
+.ls shiftlist = ""
+The input shifts file used to combine the sky subtracted images if
+\fImkshifts\fR = no or the output shifts file if \fImkshifts\fR is yes.
+Shiftlist consists of the sky subtracted image
+name, the x and y offsets in user units (usually pixels), and the
+exposure time used to scale the image (usually 1). If shiftlist is undefined
+and \fImkshifts\fR = no then xfirstpass terminates with a warning message.
+.le
+.ls sections = ".corners"
+The name of the output sections file or the string appended to the output
+image name \fIoutput\fR to create the output sections file name. The sections
+file contains the input image name from \fIinlist\fR, the coordinates of the
+lower left corner of the input image in the output combined image, and the
+coordinates of the upper right corner of the input image in the output
+combined image in columns 1 through 5 respectively.
+.le
+.ls fractional = no
+Use the fractional as well as integer part of the sky subtracted image
+offsets. The imshift task and bilinear interpolation are used to do the
+fractional part of the shift.
+.le
+.ls pixin = yes
+If pixin is yes the input offsets called a and b are assumed to be defined in
+the reference image pixel coordinate system x and y, and ab_sense, xscale,
+yscale, and a2x_angle default to yes, -1.0, -1.0, and 0.0 respectively.
+.le
+.ls ab_sense = yes
+Is the rotation of the a to b axis counter-clockwise ? The a and b
+axes are the axes along which the input offsets are measured. Ab_sense
+defaults to yes if pixin is yes.
+.le
+.ls xscale = 1.0, yscale = 1.0
+The number of pixel coordinates x and y per input coordinates a and b.
+For example if the input offsets are measured in arcseconds and the pixel
+scale is 0.25 arcseconds per pixel then xscale and yscale should be set to 4.0.
+Xscale and yscale default to -1.0 and -1.0 if pixin is yes. 
+.le
+.ls a2x_angle = 0
+The angle in degrees of the a offset axis measured counter-clockwise to the
+image x axis. A2x_angle defaults to 0.0 if pixin is yes.
+.le
+.ls ncoavg = 1
+The number of co-averages per input image. The total exposure time for
+an image is ncoavg * exptime * secpexp where exptime is read from
+\fIshiftlist\fR.
+.le
+.ls secpexp = 1.0
+The number of seconds per unit exposure time. 
+.le
+.ls y2n_angle = 0.0
+The angle in degrees from the image y axis to the north axis measured from north
+through east. If set correctly y2n_angle can be used to orient the output image
+to within 45 degrees of N up and E left.
+.le
+.ls rotation = yes
+Is the rotation of the input image north axis to the east axis
+counter-clockwise ?
+.le
+
+.ih
+DESCRIPTION
+
+XFIRSTPASS sky subtracts, bad pixel corrects, and cosmic ray corrects the
+input images \fIinlist\fR and combines them into a single output image
+\fIoutput\fR. The associated exposure map is written to the image \fIexpmap\fR.
+The individual output sky subtracted, bad pixel corrected, and cosmic ray
+corrected images are stored in \fIsslist\fR, and associated output cosmic ray
+masks are stored in \fIcrmasks\fR. The locations of the input images in the
+output combined image are stored in \fIsections\fR for later use by
+the XMASKPASS task.
+
+If \fIxslm\fR is yes XFIRSTPASS sky subtracts the input images using the
+XNSLM task if \fInewxslm\fR is yes or XSLM task if it is no and writes the
+results to the output images \fIsslist\fR. For each input image XNSLM/XSLM
+computes the running mean of the \fInmean\fR neighboring
+images, after scaling them by the median pixel values, and rejecting the
+\fInreject\fR highest scaled pixels. There must be at least \fInskymin\fR
+neighboring images for a sky image to be computed and subtracted from the
+input image. The input image medians are computed using pixels in the region
+defined by \fIstatsec\fR and an iterative \fInsigrej\fR rejection algorithm
+with the maximum number of iterations set to \fImaxiter\fR. The reciprocal of
+the computed median is stored in the image header keyword "SKYMED". If
+\fIforcescale\fR is no and the "SKYMED" keyword already exists in the input
+image header then the image medians are not recomputed. When sky subtraction
+is complete the keyword SKYSUB is written to the output image header. More
+information about the XSLM/XNSLM task can be found in the XSLM/XNSLM help pages.
+
+If \fImaskfix\fR is yes XFIRSTPASS removes known bad pixels from the sky
+subtracted images \fIsslist\fR using the MASKFIX task and the bad pixel mask
+\fIbpmask\fR. The bad pixel mask consists of 0's in bad pixel regions and 1's
+elsewhere and must be the same size as the input sky subtracted images. The bad
+pixels are removed by linearly interpolating across bad columns in each image
+line. When bad pixel removal is complete the keyword "MASKFIX" is written to
+the header of the sky subtracted image. If \fIforcefix\fR is no and "MASKFIX"
+exists in the image header then the bad pixel removal step is skipped. More
+information on the MASKFIX task can be found in the MASKFIX help page.
+
+If \fIxzap\fR is yes XFIRSTPASS removes cosmic rays from the sky subtracted
+images \fIsslist\fR  using the XNZAP task if \fInewxzap\fR is yes or the
+XZAP task if it is no, and writes the cosmic ray masks to \fIcrmasks\fR.
+The output cosmic ray masks contain 1's in the cosmic ray regions and 0's
+elsewhere.  Both XZAP and XNZAP write the keyword CRMASK which contains the
+name of the output cosmic ray MASK to the cosmic ray corrected image. If the
+CRMASK keyword is present in the sky subtracted image headers cosmic ray
+cleaning is skipped. XZAP is the tried and true XDIMSUM cosmic ray removal
+task. XNZAP is experimental but promises to be a faster technique.
+
+XZAP detects and removes cosmic rays by finding pixels which are more than
+5.0 sky sigma above the median of the surrounding box of 5 by 5 pixels,
+and which are not part of an object where an object is any pixel more than
+2.0 sky sigma above the median of the surrounding 15 by 15 box of pixels.
+XZAP uses a sky subsampling factor of 2 and cosmic ray and region growing
+box widths of 0.0 and 0.0 respectively. The sky sigma is computed using
+the region of the input sky subtracted images specified by \fIstatsec\fR 
+and iterative \fInsigrej\fR rejection with the maximum number of rejections
+set to \fImaxiter\fR.  The cosmic rays in the input sky subtracted images are
+replaced with the local median value. More information on the XZAP task
+can be found in the XZAP help page.
+
+XNZAP detects and removes cosmic rays by finding pixels which are
+more than 5.0 sky sigma above the mean of the surrounding box of 5 by 5
+pixels with the central pixel and the highest pixel removed, and which are
+not part of an object where an object is als more than 5.0 sky sigma above
+the local background. The local background is defined as the median of
+the pixels in an annulus 5.0 pixels wide around the averaging box. The
+local sky sigma is estimated by computing the percentile points of pixels
+in 25 by 25 pixel subsections evenly distributed over the image. The cosmic
+ray and object growing radii are set to 0.0 and 0.0 respectively.
+The cosmic rays in the input sky subtracted images are replaced with the
+local average value. More information on the XNZAP task can be found in the
+XNZAP help page.
+
+If \fIxzap\fR is yes and \fIbadpixupdate\fR is yes then XFIRSTPASS updates
+the bad pixel mask \fIbpmask\fR using the BADPIXUPDATE task. BADPIXUPDATE
+examines the list of cosmic rays image produced by XZAP or XNZAP, searches
+for pixels that are bad in 3 or more images, and sets those pixels in
+\fIbpmask\fR to 0.
+
+If \fImkshifts\fR = yes then XFIRSTPASS calls the XDSHIFTS task to determine
+the x and y shifts required to accurately combine the sky subtracted, bad pixel
+corrected, and cosmic ray corrected images. XDSHIFTS displays the corrected
+images and requests the user to identify a reference object common to all of
+them, then displays the reference image \fIreference\fR and requests the user
+to identify a set of registration objects. The reference objects are used to
+compute initial shifts. The positions of the registration objects in each image
+are computed using a centroiding algorithm and a centering radius of
+\fIcradius\fR pixels. Objects with shifts that are more than \fImaxshifts\fR
+pixels larger than the initial shifts are rejected from the registration
+list and the shifts of the remaining objects are averaged to compute
+the final shift for each image. If \fIchkshifts\fR is yes the user
+is permitted to edit the reference object list, the registration list,
+and the list of final shifts. The final shifts are written to \fIshiftfile\fR
+Currently XDSHIFTS sets the exposure times of the input sky subtracted images
+to 1.0.
+
+If \fImkshifts\fR = no then the name of the sky subtracted image, its x and y
+shifts relative to the reference image and its exposure time are read from
+the file \fIshiftlist\fR. Shiftlist may have been written by the XDSHIFTS,
+XMSHIFTS, XFSHIFTS, or XRSHIFTS tasks.
+
+If \fIxnregistar\fR is yes then XFIRSTPASS combines the corrected images
+into the output combined image \fIoutput\fR and output exposure map image
+\fIexpmap\fR using the badpixel mask \fIbpmask\fR, offsets and scaling
+factors in \fIshiftlist\fR if \fImkshifts\fR is no, or computed by
+XDSHIFTS if the \fImkshifts\fR is yes.  If \fIfractional\fR is no only
+the integer part of the shifts is used. XFIRSTPASS call the XNREGISTAR
+task to do the actual image combining. The parameters \fIpixin\fR,
+\fIab_sense\fR, \fIxscale\fR, \fIyscale\fR, and \fIa2x_angle\fR are
+used to convert shifts from user units, e.g. arcseconds to units of
+pixels in the reference image. The units of \fIncoavg\fR and \fIsecpexp\fR
+are used to normalize the input exposure times. The parameters 
+\fIy2n_angle\fR and \fIrotation\fR are used to orient the final
+combined image and exposure map to within 45 degrees of north up and east to
+the left. Finally the pixel positions of the input images in the output
+combined images are stored stored in the file \fIsections\fR suffix.
+
+.ih
+EXAMPLES
+
+1. Do a first pass image combining operation on the demo images.
+
+.nf
+cl> demos mkxdimsum
+
+cl> xfirstpass @demo.list demo13 fpmosaic ".exp" bpmask=demo.pl \
+    shiftlist=demo.slist nsigrej=5.0 maxiter=10 secpexp=60.0
+.fi
+
+2. Repeat the first pass image combining operation on the demo images but
+determine the shifts interactively.
+
+.nf
+cl> xfirstpass @demo.list demo13 fpmosaic ".exp" bpmask=demo.pl \
+    mkshifts+  nsigrej=5.0 maxiter=10 secpexp=60.0
+
+    ... do sky subtraction with xslm
+    ... do badpix correction with maskfix
+    ... do cosmic ray cleaning with xzap
+    ... do bad pixel mask updating with badpixupdate
+
+    ... enter the interactive xdshifts task
+
+    ... the first sky subtracted image is displayed and imexamine starts
+    ... use the n and p keystrokes to step though the image list
+    ... select a reference object common to all image
+    ... type q to quit imexamine
+
+    ... the first sky subtracted image is displayed and imexamine starts
+    ... move cursor to reference object and type a
+    ... type n to display next image
+    ... repeat previous 2 steps until first image is redisplayed
+    ... type q to quit imexamine
+    ... the task enters the default editor
+    ... edit in any required changes
+    ... quit the editor
+
+    ... the reference sky subtracted image is displayed
+    ... move cursor to registration objects and type a
+    ... type q to quit xdisplay
+    ... the task enters the default editor
+    ... edit in any required changes
+    ... quit the editor
+
+    ... do image combining with xnregistar
+.fi
+
+.ih
+TIME REQUIREMENTS
+
+.ih
+BUGS
+
+.ih
+SEE ALSO
+xslm, xnslm, maskfix, xzap, xnzap, badpixupdate, xdshifts, xnregistar
+.endhelp

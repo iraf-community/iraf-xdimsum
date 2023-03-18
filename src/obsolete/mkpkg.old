@@ -1,0 +1,18 @@
+# Make the DIMSUM package
+
+$call	relink
+$exit
+
+update:
+	$call	relink
+	$call	install
+	;
+
+relink:
+	$omake	maskinterp.x
+	$link	maskinterp.o -o xx_dimsum.e
+	;
+
+install:
+	$move	xx_dimsum.e dimsumbin$x_dimsum.e
+	;
