@@ -1,4 +1,4 @@
-# { XDIMSUM -- Package definition script for the XDIMSUM IR array imaging
+#{ XDIMSUM -- Package definition script for the XDIMSUM IR array imaging
 # reduction package.
 
 # Load necessary packages.
@@ -55,7 +55,7 @@ task maskinterp 	= "xdimsum$src/x_xdimsum.e"
 task minv		= "xdimsum$src/minv.cl"
 task xaddmask		= "xdimsum$src/xaddmask.cl"
 
-hidetask addcomment avshift fileroot maskinterp minv xaddmask
+hidetask addcomment, avshift, fileroot, maskinterp, minv, xaddmask
 
 
 # Demos
@@ -67,6 +67,6 @@ task	demos	= "demos$demos.cl"
 # to go through and eventually replace some of these calls, e.g. replace
 # imgets with hselect, etc.
 
-cache sections fileroot imgets minmax iterstat miterstat maskstat xaddmask
+cache sections, fileroot, imgets, minmax, iterstat, miterstat, maskstat, xaddmask
 
 clbye()
